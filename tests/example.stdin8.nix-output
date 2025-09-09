@@ -1,0 +1,6 @@
+[nixos@nixos:~/cargo]$ nix build --file default.nix
+error: builder for '/nix/store/gd0hjli48fanwc1g8ndnkrzhywngxqai-asdf.drv' failed with exit code 1;
+       last 1 log lines:
+       > Running phase: installPhase
+       For full logs, run:
+         nix log /nix/store/gd0hjli48fanwc1g8ndnkrzhywngxqai-asdf.drv

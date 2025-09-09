@@ -1,0 +1,10 @@
+@nix {"action":"start","id":7059835312930816,"level":6,"parent":0,"text":"querying info about missing paths","type":0}
+@nix {"action":"stop","id":7059835312930816}
+@nix {"action":"start","id":7059835312930817,"level":0,"parent":0,"text":"","type":102}
+@nix {"action":"start","id":7059835312930818,"level":0,"parent":0,"text":"","type":104}
+@nix {"action":"start","id":7059835312930819,"level":0,"parent":0,"text":"","type":103}
+@nix {"action":"start","id":7059835312930820,"level":6,"parent":0,"text":"querying info about missing paths","type":0}
+@nix {"action":"stop","id":7059835312930820}
+@nix {"action":"stop","id":7059835312930819}
+@nix {"action":"stop","id":7059835312930818}
+@nix {"action":"stop","id":7059835312930817}

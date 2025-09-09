@@ -1,0 +1,7 @@
+[nixos@nixos:~/cargo]$ nix build --file default.nix
+error: syntax error, unexpected '}', expecting '.' or '='
+       at /home/nixos/cargo/default.nix:13:1:
+           12| asdf
+           13| }
+             | ^
+           14|

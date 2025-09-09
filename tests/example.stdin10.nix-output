@@ -1,0 +1,23 @@
+[nixos@nixos:~/cargo]$ nix build --file default.nix -L --keep-going
+asdf-a> Running phase: installPhase
+asdf-b> Running phase: installPhase
+asdf-c> Running phase: installPhase
+
+
+
+
+
+nom
+
+asdf-a> building '/nix/store/zwrw97v830rp08ds4970acnfvbs7vm9z-asdf-a.drv'
+asdf-b> building '/nix/store/nvk4rhwgd5ihvwd836zwi8kpd4jg8qy9-asdf-b.drv'
+asdf-c> building '/nix/store/ipsl0a8bxznidhpvhbs3bzrljig4arwg-asdf-c.drv'
+asdf-a> Running phase: installPhase
+asdf-b> Running phase: installPhase
+asdf-c> Running phase: installPhase
+┏━ Dependency Graph with 3 roots:
+┃ ✔ asdf-a
+┃ ✔ asdf-b
+┃ ✔ asdf-c
+┣━━━ Builds
+┗━ ∑ ⏵ 0 │ ✔ 3 │ ⏸ 0 │ Finished at 09:22:24 after 0s

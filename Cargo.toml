@@ -1,0 +1,23 @@
+[package]
+name = "nix-json-monitor"
+version = "0.1.0"
+edition = "2021"
+authors = ["Nix JSON Monitor Contributors"]
+description = "A Rust command-line tool that parses Nix's --log-format json-internal output"
+license = "MIT"
+
+[[bin]]
+name = "nix-json-monitor"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+clap = { version = "4.0", features = ["derive"] }
+tokio = { version = "1.0", features = ["full"] }
+crossterm = "0.27"
+console = "0.15"
+regex = "1.10"
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "1.0"
+anyhow = "1.0"
