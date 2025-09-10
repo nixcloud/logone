@@ -9,9 +9,9 @@ static mut DONE: u64 = 0;
 static mut EXPECTED: u64 = 0;
 static mut RUNNING: u64 = 0;
 static mut FAILED: u64 = 0;
-static STATS_IDS: LazyLock<Mutex<HashSet<u64>>> = LazyLock::new(|| Mutex::new(HashSet::new()));
+static STATUS_IDS: LazyLock<Mutex<HashSet<u64>>> = LazyLock::new(|| Mutex::new(HashSet::new()));
 
-pub async fn handle_stats_start(
+pub async fn handle_status_start(
     obj: &Map<String, Value>,
     display: &mut display::DisplayManager,
 ) -> Result<()> {
@@ -20,19 +20,16 @@ pub async fn handle_stats_start(
         .and_then(|v| v.as_u64())
         .ok_or_else(|| anyhow!("Missing id in stats start"))?;
 
-    // Track this as a stats ID
-    if let Ok(mut stats_ids) = STATS_IDS.lock() {
-        stats_ids.insert(id);
+    // Track this as a status ID
+    if let Ok(mut status_ids) = STATUS_IDS.lock() {
+        status_ids.insert(id);
     }
 
-    if display.debug {
-        println!("stats start: id={}", id);
-    }
 
     Ok(())
 }
 
-pub async fn handle_stats_update(
+pub async fn handle_status_update(
     obj: &Map<String, Value>,
     display: &mut display::DisplayManager,
 ) -> Result<()> {
@@ -41,9 +38,9 @@ pub async fn handle_stats_update(
         .and_then(|v| v.as_u64())
         .ok_or_else(|| anyhow!("Missing id in stats update"))?;
 
-    // Check if the id is in STATS_IDS
-    if let Ok(stats_ids) = STATS_IDS.lock() {
-        if !stats_ids.contains(&id) {
+    // Check if the id is in STATUS_IDS
+    if let Ok(status_ids) = STATUS_IDS.lock() {
+        if !status_ids.contains(&id) {
             return Err(anyhow!("Unknown id in stats update: {}", id));
         }
     } else {
@@ -80,7 +77,7 @@ pub async fn handle_stats_update(
     Ok(())
 }
 
-pub async fn handle_stats_stop(
+pub async fn handle_status_stop(
     obj: &Map<String, Value>,
     display: &mut display::DisplayManager,
 ) -> Result<()> {
@@ -90,13 +87,10 @@ pub async fn handle_stats_stop(
         .ok_or_else(|| anyhow!("Missing id in stats stop"))?;
 
     // Remove from stats IDs
-    if let Ok(mut stats_ids) = STATS_IDS.lock() {
-        stats_ids.remove(&id);
+    if let Ok(mut status_ids) = STATUS_IDS.lock() {
+        status_ids.remove(&id);
     }
 
-    if display.debug {
-        println!("Status stop: id={}", id);
-    }
 
     // Keep the stats values, don't reset them
     update_stats_display(display).await?;
@@ -104,9 +98,9 @@ pub async fn handle_stats_stop(
     Ok(())
 }
 
-pub fn is_stats_id(id: u64) -> bool {
-    if let Ok(stats_ids) = STATS_IDS.lock() {
-        stats_ids.contains(&id)
+pub fn is_status_id(id: u64) -> bool {
+    if let Ok(status_ids) = STATUS_IDS.lock() {
+        status_ids.contains(&id)
     } else {
         false
     }
@@ -117,8 +111,4 @@ async fn update_stats_display(display: &mut display::DisplayManager) -> Result<(
 
     display.update_stats(done, expected, running, failed).await;
     Ok(())
-}
-
-pub fn get_stats() -> (u64, u64, u64, u64) {
-    unsafe { (DONE, EXPECTED, RUNNING, FAILED) }
 }

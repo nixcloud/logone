@@ -1,26 +1,8 @@
 use crate::display;
 use anyhow::{anyhow, Result};
+use display::{LogData, NixMessage};
 use regex::Regex;
 use serde_json::{Map, Value};
-use std::collections::HashMap;
-use std::sync::{LazyLock, Mutex};
-
-#[derive(Debug, Clone)]
-pub struct NixMessage {
-    pub action: String,
-    pub message_type: Option<u64>,
-    pub content: String,
-    pub level: Option<u64>,
-    pub file: Option<String>,
-}
-
-pub type LogData = Vec<NixMessage>;
-
-// Global state for logs
-static LOG_BUFFERS: LazyLock<Mutex<HashMap<u64, LogData>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
-static DRV_TO_ID: LazyLock<Mutex<HashMap<String, u64>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 pub async fn handle_log_start(
     obj: &Map<String, Value>,
@@ -38,18 +20,14 @@ pub async fn handle_log_start(
         .to_string();
 
     // Create new log buffer for this id
-    if let Ok(mut buffers) = LOG_BUFFERS.lock() {
+    if let Ok(mut buffers) = display.log_buffers.lock() {
         buffers.insert(id, Vec::new());
     }
 
     // Map id to derivation name
-    if let Ok(mut drv_to_id) = DRV_TO_ID.lock() {
+    if let Ok(mut drv_to_id) = display.drv_to_id.lock() {
         //println!("{}", text.clone());
         drv_to_id.insert(text.clone(), id);
-    }
-
-    if display.debug {
-        println!("Log start: id={}, text='{}'", id, text);
     }
 
     Ok(())
@@ -85,14 +63,10 @@ pub async fn handle_log_line(
     };
 
     // Add to buffer
-    if let Ok(mut buffers) = LOG_BUFFERS.lock() {
+    if let Ok(mut buffers) = display.log_buffers.lock() {
         if let Some(buffer) = buffers.get_mut(&id) {
             buffer.push(message);
         }
-    }
-
-    if display.debug {
-        println!("Log line: id={}", id);
     }
 
     Ok(())
@@ -128,14 +102,10 @@ pub async fn handle_log_phase(
     };
 
     // Add to buffer
-    if let Ok(mut buffers) = LOG_BUFFERS.lock() {
+    if let Ok(mut buffers) = display.log_buffers.lock() {
         if let Some(buffer) = buffers.get_mut(&id) {
             buffer.push(message);
         }
-    }
-
-    if display.debug {
-        println!("Log phase: id={}", id);
     }
 
     Ok(())
@@ -149,22 +119,6 @@ pub async fn handle_log_stop(
         .get("id")
         .and_then(|v| v.as_u64())
         .ok_or_else(|| anyhow!("Missing id in log stop"))?;
-
-    // if display.verbose {
-    //     if let Ok(mut buffers) = LOG_BUFFERS.lock() {
-    //         if let Some(buffer) = buffers.remove(&id) {
-    //             display.print_log_buffer(id, &buffer).await;
-    //         }
-    //     }
-    // }
-    // // Just remove the buffer without printing
-    // if let Ok(mut buffers) = LOG_BUFFERS.lock() {
-    //     buffers.remove(&id);
-    // }
-
-    if display.debug {
-        println!("Log stop: id={}", id);
-    }
 
     Ok(())
 }
@@ -185,53 +139,61 @@ pub async fn handle_msg(
             if let Some(c) = c.get(1) {
                 // lv24iib6cgsr1ipkz4gpf2agf08bxj6n-cargo-0_88_0-d76731b471aa2da9
                 let drv: String = format!("building '/nix/store/{}.drv'", c.as_str());
-                if let Ok(drv_to_id) = DRV_TO_ID.lock() {
-                    match drv_to_id.get(&drv) {
-                        Some(id) => {
-                            //println!("{msg} {id} handle_msg");
-
-                            if let Ok(mut buffers) = LOG_BUFFERS.lock() {
-                                if let Some(buffer) = buffers.remove(&id) {
-                                    display.print_log_buffer(*id, &buffer, c.as_str()).await;
-                                }
-                            }
-                        }
-                        None => {}
-                    }
-                }
+                display.print_log_buffer_by_drv(drv).await;
             }
         }
         None => {}
     }
 
-    // Filter by level based on mode
-    let should_show = if display.verbose {
-        true // Show all levels in verbose mode
-    } else {
-        level >= 1 && level <= 3 // Normal mode: show levels 1, 2, 3
-    };
-
-    if should_show {
+    // Show messages with level 1-3 (WARN, NOTICE, INFO)
+    if level >= 1 && level <= 3 {
         display.print_message(level, msg, file).await;
-    }
-
-    if display.debug {
-        println!("Message: level={}, file={:?}, msg='{}'", level, file, msg);
     }
 
     Ok(())
 }
 
-pub fn has_log_buffer(id: u64) -> bool {
-    if let Ok(buffers) = LOG_BUFFERS.lock() {
+// echo "@cargo { \"type\":0, \"crate_name\":\"{{{crate_name}}}\" }"
+pub async fn handle_cargo_log_start(
+    obj: &Map<String, Value>,
+    display: &mut display::DisplayManager,
+) -> Result<()> {
+    let crate_name = obj
+        .get("crate_name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    display.target_add(crate_name).await?;
+    Ok(())
+}
+
+// @cargo {type: 2, crate_name: $crate_name, rustc_exit_code: ($exit_code|tonumber), rustc_messages: [ some embedded rustc output messages]}
+pub async fn handle_cargo_log_exit(
+    obj: &Map<String, Value>,
+    display: &mut display::DisplayManager,
+) -> Result<()> {
+    let crate_name = obj
+        .get("crate_name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    display.target_remove(crate_name).await?;
+
+    Ok(())
+}
+
+pub fn has_log_buffer(id: u64, display: &mut display::DisplayManager) -> bool {
+    if let Ok(buffers) = display.log_buffers.lock() {
         buffers.contains_key(&id)
     } else {
         false
     }
 }
 
-pub fn query_logs_by_id(id: u64) -> Option<LogData> {
-    if let Ok(buffers) = LOG_BUFFERS.lock() {
+pub fn query_logs_by_id(id: u64, display: &mut display::DisplayManager) -> Option<LogData> {
+    if let Ok(buffers) = display.log_buffers.lock() {
         buffers.get(&id).cloned()
     } else {
         None

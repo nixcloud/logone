@@ -1,12 +1,17 @@
-use clap::Parser;
-use std::io::{self, BufRead, BufReader};
+use clap::{Parser, ValueEnum};
 use tokio::io::{stdin, AsyncBufReadExt, BufReader as AsyncBufReader};
 
 mod display;
 mod logs;
-mod misc;
 mod parse;
-mod stats;
+mod status;
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum LogLevel {
+    Cargo,
+    Errors,
+    Verbose,
+}
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -15,25 +20,13 @@ struct Args {
     #[arg(short, long)]
     json: bool,
 
-    /// Enable verbose mode
-    #[arg(short, long)]
-    verbose: bool,
-
-    /// Enable debug output
-    #[arg(short, long)]
-    debug: bool,
-
-    /// Show timing information
-    #[arg(short, long)]
-    timing: bool,
-
     /// Disable colored output
     #[arg(long)]
     no_color: bool,
 
-    /// Minimum time to show in seconds
-    #[arg(long, default_value = "1")]
-    min_time: u64,
+    /// Set log level for filtering messages
+    #[arg(short, long, value_enum, default_value_t = LogLevel::Cargo)]
+    level: LogLevel,
 }
 
 #[tokio::main]
@@ -46,8 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Initialize display manager
-    let mut display =
-        display::DisplayManager::new(args.verbose, !args.no_color, args.timing, args.debug);
+    let mut display = display::DisplayManager::new(!args.no_color, args.level);
 
     // Read from stdin line by line
     let stdin = stdin();
@@ -55,10 +47,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut lines = reader.lines();
 
     while let Some(line) = lines.next_line().await? {
-        if let Err(e) = parse::parse_line(&line, &mut display).await {
-            if args.debug {
-                eprintln!("Parse error: {}", e);
-            }
+        if let Err(_) = parse::parse_nix_line(&line, &mut display).await {
+            // Silently ignore parse errors
         }
     }
 

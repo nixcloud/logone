@@ -16,25 +16,14 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Rust Build and Run"
+args = "Test Application"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "rust_build_and_test"
+args = "Build and Run"
 
 [[workflows.workflow]]
-name = "Rust Build and Run"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cargo build --release && echo \"Build completed successfully!\" && echo \"Testing with sample input...\" && echo '@nix {\"action\":\"start\",\"id\":123456,\"level\":1,\"parent\":0,\"text\":\"building hello-world-1.0\",\"type\":105}' | ./target/release/nix-json-monitor --json --timing --debug"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow]]
-name = "rust_build_and_test"
+name = "Test Application"
 author = "agent"
 
 [[workflows.workflow.tasks]]
@@ -43,4 +32,18 @@ args = """
 cargo build && echo \"Build successful! Testing with sample Nix JSON input...\" && echo '@nix {\"action\":\"start\",\"id\":123,\"level\":1,\"parent\":0,\"text\":\"building hello-world-1.0\",\"type\":105}
 @nix {\"action\":\"msg\",\"level\":0,\"msg\":\"Starting build process\",\"raw_msg\":\"Starting build process\"}
 @nix {\"action\":\"result\",\"id\":123,\"fields\":[1,2,1,0]}
-@nix {\"action\":\"stop\",\"id\":123}' | cargo run -- --json --timing"""
+@nix {\"action\":\"stop\",\"id\":123}' | cargo run -- --json"""
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "Build and Run"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cargo build --release && echo \"Build completed successfully!\" && echo \"Testing with sample input...\" && echo '@nix {\"action\":\"start\",\"id\":123456,\"level\":1,\"parent\":0,\"text\":\"building hello-world-1.0\",\"type\":105}' | ./target/release/nix-json-monitor --json"
+
+[workflows.workflow.metadata]
+outputType = "console"
