@@ -139,7 +139,7 @@ pub async fn handle_msg(
             if let Some(c) = c.get(1) {
                 // lv24iib6cgsr1ipkz4gpf2agf08bxj6n-cargo-0_88_0-d76731b471aa2da9
                 let drv: String = format!("building '/nix/store/{}.drv'", c.as_str());
-                display.print_log_buffer_by_drv(drv).await;
+                display.print_log_buffer_by_drv(drv);
             }
         }
         None => {}

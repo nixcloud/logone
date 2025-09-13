@@ -1,5 +1,5 @@
-use crate::LogLevel;
 use anyhow::Result;
+use clap::ValueEnum;
 use console::style;
 use crossterm::{
     cursor::{MoveToColumn, MoveToPreviousLine, RestorePosition, SavePosition},
@@ -12,6 +12,13 @@ use std::io::{stdout, Write};
 
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum LogLevel {
+    Cargo,
+    Errors,
+    Verbose,
+}
 
 #[derive(Debug, Clone)]
 pub struct NixMessage {
@@ -35,6 +42,13 @@ pub struct DisplayManager {
     last_targets_hash: u64,
     pub log_buffers: LazyLock<Mutex<HashMap<Id, LogData>>>,
     pub drv_to_id: LazyLock<Mutex<HashMap<String, u64>>>,
+    active: bool,
+}
+
+impl Drop for DisplayManager {
+    fn drop(&mut self) {
+        self.shutdown();
+    }
 }
 
 impl DisplayManager {
@@ -48,6 +62,21 @@ impl DisplayManager {
             last_targets_hash: 0,
             log_buffers: LazyLock::new(|| Mutex::new(HashMap::new())),
             drv_to_id: LazyLock::new(|| Mutex::new(HashMap::new())),
+            active: true,
+        }
+    }
+
+    pub fn shutdown(&mut self) {
+        println!("Dropping DisplayManager");
+        if self.active {
+            self.active = false;
+            let ids: Vec<u64> = match self.log_buffers.lock() {
+                Ok(buffers) => buffers.keys().cloned().collect(),
+                Err(_) => return,
+            };
+            for id in ids {
+                self.print_log_buffer_by_id(id);
+            }
         }
     }
 
@@ -122,7 +151,7 @@ impl DisplayManager {
         stdout().flush().unwrap();
     }
 
-    pub async fn print_log_buffer_by_drv(&mut self, drv: String) {
+    pub fn print_log_buffer_by_drv(&mut self, drv: String) {
         let id: Id = {
             let drv_to_id = match self.drv_to_id.lock() {
                 Ok(guard) => guard,
@@ -133,10 +162,10 @@ impl DisplayManager {
                 None => return,  // early exit if not found
             }
         };
-        self.print_log_buffer(id, drv).await
+        self.print_log_buffer(id, drv)
     }
 
-    pub async fn print_log_buffer_by_id(&mut self, id: Id) {
+    pub fn print_log_buffer_by_id(&mut self, id: Id) {
         let drv: String = match self.drv_to_id.lock() {
             Ok(drv_to_id) => match drv_to_id.iter().find(|(_, &v)| v == id) {
                 Some((k, _)) => k.clone(),
@@ -145,10 +174,10 @@ impl DisplayManager {
             Err(_) => return,
         };
 
-        self.print_log_buffer(id, drv).await
+        self.print_log_buffer(id, drv)
     }
 
-    async fn print_log_buffer(&mut self, id: Id, drv: String) {
+    fn print_log_buffer(&mut self, id: Id, drv: String) {
         if let Ok(mut buffers) = self.log_buffers.lock() {
             if let Some(buffer) = buffers.remove(&id) {
                 // Clear status line if active

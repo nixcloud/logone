@@ -91,7 +91,6 @@ pub async fn handle_status_stop(
         status_ids.remove(&id);
     }
 
-
     // Keep the stats values, don't reset them
     update_stats_display(display).await?;
 

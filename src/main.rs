@@ -1,17 +1,11 @@
-use clap::{Parser, ValueEnum};
+use clap::Parser;
 use tokio::io::{stdin, AsyncBufReadExt, BufReader as AsyncBufReader};
+use display::LogLevel;
 
 mod display;
 mod logs;
 mod parse;
 mod status;
-
-#[derive(Debug, Clone, Copy, ValueEnum)]
-pub enum LogLevel {
-    Cargo,
-    Errors,
-    Verbose,
-}
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
