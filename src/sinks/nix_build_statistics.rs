@@ -11,10 +11,7 @@ static mut RUNNING: u64 = 0;
 static mut FAILED: u64 = 0;
 static STATUS_IDS: LazyLock<Mutex<HashSet<u64>>> = LazyLock::new(|| Mutex::new(HashSet::new()));
 
-pub async fn handle_status_start(
-    obj: &Map<String, Value>,
-    _: &mut logone::LogOne,
-) -> Result<()> {
+pub async fn handle_status_start(obj: &Map<String, Value>, _: &mut logone::LogOne) -> Result<()> {
     let id = obj
         .get("id")
         .and_then(|v| v.as_u64())

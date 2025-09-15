@@ -1,13 +1,10 @@
 use crate::logone;
 use anyhow::{anyhow, Result};
-use logone::{NixMessage, LogStatus};
+use logone::{LogStatus, NixMessage};
 use regex::Regex;
 use serde_json::{Map, Value};
 
-pub async fn handle_log_start(
-    obj: &Map<String, Value>,
-    logone: &mut logone::LogOne,
-) -> Result<()> {
+pub async fn handle_log_start(obj: &Map<String, Value>, logone: &mut logone::LogOne) -> Result<()> {
     let id = obj
         .get("id")
         .and_then(|v| v.as_u64())
@@ -25,7 +22,7 @@ pub async fn handle_log_start(
     }
 
     if let Ok(mut buffers_state) = logone.nix_log_buffers_state.lock() {
-            buffers_state.insert(id, LogStatus::Started);
+        buffers_state.insert(id, LogStatus::Started);
     }
 
     // Map id to derivation name
@@ -73,10 +70,7 @@ pub async fn handle_log_line(obj: &Map<String, Value>, logone: &mut logone::LogO
     Ok(())
 }
 
-pub async fn handle_log_phase(
-    obj: &Map<String, Value>,
-    logone: &mut logone::LogOne,
-) -> Result<()> {
+pub async fn handle_log_phase(obj: &Map<String, Value>, logone: &mut logone::LogOne) -> Result<()> {
     let id = obj
         .get("id")
         .and_then(|v| v.as_u64())
@@ -118,7 +112,7 @@ pub async fn handle_log_stop(obj: &Map<String, Value>, logone: &mut logone::LogO
         .and_then(|v| v.as_u64())
         .ok_or_else(|| anyhow!("Missing id in log phase"))?;
     if let Ok(mut buffers_state) = logone.nix_log_buffers_state.lock() {
-            buffers_state.insert(id, LogStatus::Stopped);
+        buffers_state.insert(id, LogStatus::Stopped);
     }
     Ok(())
 }

@@ -27,7 +27,12 @@ pub async fn handle_cargo_log_start(
         .unwrap_or("")
         .to_string();
 
-    logone.target_add(crate_name).await?;
+    logone.target_add(crate_name.clone()).await?;
+
+    let msg: String = format!("   \x1b[32mCompiling\x1b[0m {}", crate_name);
+
+    logone.print_message(0, msg.as_str(), None).await;
+
     Ok(())
 }
 
@@ -95,8 +100,6 @@ pub async fn handle_cargo_log_exit(
             logone
                 .print_message(rustc_exit_code, msg.as_str(), file)
                 .await;
-            //logone.print_log_buffer_by_drv(msg);
-            // println!("{}", msg);
         }
     }
 
