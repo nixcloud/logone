@@ -1,6 +1,6 @@
 [package]
-name = "longone"
-version = "0.2.0"
+name = "logone"
+version = "0.2.1"
 edition = "2021"
 authors = ["Joachim Schiele <js@lastlog.de>"]
 description = "A command-line tool that parses Nix's --log-format json-internal output as standalone and crate library"
