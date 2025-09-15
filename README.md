@@ -4,12 +4,30 @@ this rust project 'logone' implements a rust program and crate library to consum
 
     `nix build --log-format internal-json`
 
-it is also an attempt to make nix logging less verbose / nosiy
+and attempts to make nix logging less verbose / nosiy to be used in the nix backend of cargo.
 
-* when building several drv(s) in parallel, it accumulate the individual logs and only outputs them when there is an error
-* it prevents the print of the nix error summary where you have the error twice in the output but with the hideous indentation
+# level
 
-# status
+how it works, depends on the selected log level using `--level`.
+
+## verbose
+
+* when building several drv(s) in parallel, it accumulate the individual logs and outputs them in complete sequences
+
+## errors
+
+* it only prints the outputs of builds which have failed
+* it prevents the print of the nix error summary (DRY)
+
+## cargo
+
+this mode imitates the `cargo build` style of logging i.e.:
+
+* only log start of crate builds
+* only log warnings / errors
+* be very concise / precise, don't add the compiler call
+
+# project status
 
 * [x] prototype as standalone binary works
   * [x] support for @nix

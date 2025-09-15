@@ -10,8 +10,11 @@ readme = "README.md"
 keywords = ["logger", "logging"]
 categories = ["development-tools::debugging"]
 
+[lib]
+name = "logone"
+
 [[bin]]
-name = "nix-json-monitor"
+name = "logone"
 path = "src/main.rs"
 
 [dependencies]
