@@ -1,8 +1,10 @@
 # motivation
 
-this rust project implements a rust client to the `nix build --log-format internal-json` protocol.
+this rust project 'logone' implements a rust program and crate library to consume the nix output produced by:
 
-it is also an attempt to make nix logging less verbose and more readable by humans by doing this:
+    `nix build --log-format internal-json`
+
+it is also an attempt to make nix logging less verbose / nosiy
 
 * when building several drv(s) in parallel, it accumulate the individual logs and only outputs them when there is an error
 * it prevents the print of the nix error summary where you have the error twice in the output but with the hideous indentation
@@ -19,12 +21,7 @@ it is also an attempt to make nix logging less verbose and more readable by huma
     * [x] "verbose" shows all @nix messages for each build: successful and failed ones but still in sorted blocks (no mixed logging), ignores all @cargo messages
   * [x] remove --timing / --min-time / --debug
   * [x] print the @cargo internal logs properly & use the exit code
-* [ ] make it a crate libary
-* [ ] create demo with https://docs.asciinema.org/manual/server/embedding/
-  * [ ] successful build
-  * [ ] build with one error
-  * [ ] build with two errors
-  * [ ] build with many targets
+* [x] make it a crate libary
 
 a good illustration on how to @nix protocol works and can be implemented. it sometimes shows different results than `nix-output-monitor` and `nix` itself:
 
@@ -36,13 +33,18 @@ a good illustration on how to @nix protocol works and can be implemented. it som
 
 as an example there are outputs in the tests folder one can experiment with:
 
-the 'normal' monitor:
-
-    cat tests/example.stdin2 | cargo run -- --json
-
-the 'verbose' monitor:
+the 'verbose' level:
 
     cat tests/example.stdin2 | cargo run -- --json --level verbose
+
+the 'cargo' level:
+
+    cat tests/example.stdin11 | cargo run -- --json --level cargo
+    cat tests/example.stdin12 | cargo run -- --json --level cargo
+
+the 'errors' level:
+
+    cat tests/example.stdin2 | cargo run -- --json --level errors
 
 ## license
 
