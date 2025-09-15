@@ -1,10 +1,14 @@
 [package]
-name = "nix-json-monitor"
-version = "0.1.0"
+name = "longone"
+version = "0.2.0"
 edition = "2021"
-authors = ["Nix JSON Monitor Contributors"]
-description = "A Rust command-line tool that parses Nix's --log-format json-internal output"
-license = "MIT"
+authors = ["Joachim Schiele <js@lastlog.de>"]
+description = "A command-line tool that parses Nix's --log-format json-internal output as standalone and crate library"
+license = "MIT OR Apache-2.0" 
+repository = "https://github.com/nixcloud/logone"
+readme = "README.md"
+keywords = ["logger", "logging"]
+categories = ["development-tools::debugging"]
 
 [[bin]]
 name = "nix-json-monitor"
