@@ -241,18 +241,10 @@ impl LogOne {
             self.status_line_active = false;
         }
 
-        let level_text = match level {
-            0 => "ERROR",
-            1 => "WARN",
-            2 => "NOTICE",
-            3 => "INFO",
-            _ => "DEBUG",
-        };
-
         let formatted_msg = if let Some(file_path) = file {
-            format!("[{}] {}: {}", level_text, file_path, msg)
+            format!("{}: {}", file_path, msg)
         } else {
-            format!("[{}] {}", level_text, msg)
+            format!("{}", msg)
         };
 
         if self.colored {

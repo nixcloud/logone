@@ -89,8 +89,15 @@ pub async fn handle_cargo_log_exit(
         }
     }
 
-    for msg in rendered_messages {
-        println!("{}", msg);
+    if logone.level() == logone::LogLevel::Cargo {
+        for msg in rendered_messages {
+            let file: Option<&str> = None;
+            logone
+                .print_message(rustc_exit_code, msg.as_str(), file)
+                .await;
+            //logone.print_log_buffer_by_drv(msg);
+            // println!("{}", msg);
+        }
     }
 
     Ok(())
