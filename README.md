@@ -27,20 +27,6 @@ this mode imitates the `cargo build` style of logging i.e.:
 * only log warnings / errors
 * be very concise / precise, don't add the compiler call
 
-# project status
-
-* [x] prototype as standalone binary works
-  * [x] support for @nix
-* [ ] minimalist logging
-  * [x] support for custom extensions like @cargo
-  * [x] add 3 log levels: --level cargo|errors|verbose
-    * [x] "cargo" (default): ignores logs from @nix and uses @cargo logs and error detection
-    * [x] "errors" only use @nix logs, ignore @cargo messages for the failing build
-    * [x] "verbose" shows all @nix messages for each build: successful and failed ones but still in sorted blocks (no mixed logging), ignores all @cargo messages
-  * [x] remove --timing / --min-time / --debug
-  * [x] print the @cargo internal logs properly & use the exit code
-* [x] make it a crate libary
-
 a good illustration on how to @nix protocol works and can be implemented. it sometimes shows different results than `nix-output-monitor` and `nix` itself:
 
 * https://github.com/nixos/nix/issues/13909

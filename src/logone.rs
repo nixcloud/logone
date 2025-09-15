@@ -110,6 +110,43 @@ impl LogOne {
         Ok(())
     }
 
+    // Redraw status line with current stored values (ignores anti-flicker logic)
+    pub fn redraw_status(&mut self) {
+        // Only redraw if we have stats to show
+        if let Some((done, expected, running, failed)) = self.last_stats {
+            let base_status = format!(
+                "[ {} Done | {} Expected | {} Running | {} Failed ]",
+                done, expected, running, failed
+            );
+
+            // Get terminal width and crop targets to fit
+            let display_line = self.format_status_with_targets(&base_status);
+
+            if self.colored {
+                let styled_base = format!(
+                    "[ {} Done | {} Expected | {} Running | {} Failed ]",
+                    style(done).green(),
+                    style(expected).green(),
+                    style(running).yellow(),
+                    style(failed).red()
+                );
+
+                // Get targets part and combine with styled base
+                let targets_part = self.get_targets_display(&base_status);
+                if targets_part.is_empty() {
+                    println!("{}", styled_base);
+                } else {
+                    println!("{} {}", styled_base, targets_part);
+                }
+            } else {
+                println!("{}", display_line);
+            }
+
+            self.status_line_active = true;
+            stdout().flush().unwrap();
+        }
+    }
+
     pub async fn update_stats(&mut self, done: u64, expected: u64, running: u64, failed: u64) {
         let current_stats = (done, expected, running, failed);
         let current_targets_hash = self.calculate_targets_hash();
@@ -190,44 +227,54 @@ impl LogOne {
     }
 
     fn print_log_buffer(&mut self, id: Id, drv: String) {
-        if let Ok(mut buffers) = self.nix_log_buffers.lock() {
-            if let Some(buffer) = buffers.remove(&id) {
-                // Clear status line if active
-                if self.status_line_active {
-                    let mut stdout = stdout();
-                    stdout.execute(MoveToPreviousLine(1)).unwrap();
-                    stdout.execute(MoveToColumn(0)).unwrap();
-                    stdout.execute(Clear(ClearType::CurrentLine)).unwrap();
-                    self.status_line_active = false;
-                }
+        // Extract the buffer first, then drop the mutex guard
+        let buffer = {
+            if let Ok(mut buffers) = self.nix_log_buffers.lock() {
+                buffers.remove(&id)
+            } else {
+                return;
+            }
+        };
 
-                println!("Build log for '{}':", drv);
-                for message in buffer {
-                    match message.message_type {
-                        Some(101) => {
-                            // resBuildLogLine
-                            if self.colored {
-                                println!("  {}", style(&message.content).dim());
-                            } else {
-                                println!("  {}", message.content);
-                            }
-                        }
-                        Some(104) => {
-                            // resSetPhase
-                            if self.colored {
-                                println!("  {}", style(&message.content).cyan());
-                            } else {
-                                println!("  {}", message.content);
-                            }
-                        }
-                        _ => {
+        if let Some(buffer) = buffer {
+            // Clear status line if active
+            if self.status_line_active {
+                let mut stdout = stdout();
+                stdout.execute(MoveToPreviousLine(1)).unwrap();
+                stdout.execute(MoveToColumn(0)).unwrap();
+                stdout.execute(Clear(ClearType::CurrentLine)).unwrap();
+                self.status_line_active = false;
+            }
+
+            println!("Build log for '{}':", drv);
+            for message in buffer {
+                match message.message_type {
+                    Some(101) => {
+                        // resBuildLogLine
+                        if self.colored {
+                            println!("  {}", style(&message.content).dim());
+                        } else {
                             println!("  {}", message.content);
                         }
                     }
+                    Some(104) => {
+                        // resSetPhase
+                        if self.colored {
+                            println!("  {}", style(&message.content).cyan());
+                        } else {
+                            println!("  {}", message.content);
+                        }
+                    }
+                    _ => {
+                        println!("  {}", message.content);
+                    }
                 }
-                println!(); // Empty line after log
-                stdout().flush().unwrap();
             }
+            println!(); // Empty line after log
+            stdout().flush().unwrap();
+            
+            // Redraw status line after printing log buffer
+            self.redraw_status();
         }
     }
 
@@ -261,6 +308,9 @@ impl LogOne {
         }
 
         stdout().flush().unwrap();
+        
+        // Redraw status line after printing message
+        self.redraw_status();
     }
 
     pub fn clear_status_line(&mut self) {
