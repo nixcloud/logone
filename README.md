@@ -13,12 +13,12 @@ it is also an attempt to make nix logging less verbose and more readable by huma
   * [x] support for @nix
 * [ ] minimalist logging
   * [x] support for custom extensions like @cargo
-  * [ ] add 3 log levels: --level cargo|errors|verbose
-    * [ ] "cargo" (default): ignores logs from @nix and uses @cargo logs and error detection
-    * [ ] "errors" only use @nix logs, ignore @cargo messages for the failing build
-    * [ ] "verbose" shows all @nix messages for each build: successful and failed ones but still in sorted blocks (no mixed logging), ignores all @cargo messages
+  * [x] add 3 log levels: --level cargo|errors|verbose
+    * [x] "cargo" (default): ignores logs from @nix and uses @cargo logs and error detection
+    * [x] "errors" only use @nix logs, ignore @cargo messages for the failing build
+    * [x] "verbose" shows all @nix messages for each build: successful and failed ones but still in sorted blocks (no mixed logging), ignores all @cargo messages
   * [x] remove --timing / --min-time / --debug
-  * [ ] print the @cargo internal logs properly & use the exit code
+  * [x] print the @cargo internal logs properly & use the exit code
 * [ ] make it a crate libary
 * [ ] create demo with https://docs.asciinema.org/manual/server/embedding/
   * [ ] successful build

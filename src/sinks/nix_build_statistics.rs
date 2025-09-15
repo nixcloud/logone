@@ -1,4 +1,4 @@
-use crate::display;
+use crate::logone;
 use anyhow::{anyhow, Result};
 use serde_json::{Map, Value};
 use std::collections::HashSet;
@@ -13,7 +13,7 @@ static STATUS_IDS: LazyLock<Mutex<HashSet<u64>>> = LazyLock::new(|| Mutex::new(H
 
 pub async fn handle_status_start(
     obj: &Map<String, Value>,
-    display: &mut display::DisplayManager,
+    _: &mut logone::LogOne,
 ) -> Result<()> {
     let id = obj
         .get("id")
@@ -24,14 +24,12 @@ pub async fn handle_status_start(
     if let Ok(mut status_ids) = STATUS_IDS.lock() {
         status_ids.insert(id);
     }
-
-
     Ok(())
 }
 
 pub async fn handle_status_update(
     obj: &Map<String, Value>,
-    display: &mut display::DisplayManager,
+    display: &mut logone::LogOne,
 ) -> Result<()> {
     let id = obj
         .get("id")
@@ -79,7 +77,7 @@ pub async fn handle_status_update(
 
 pub async fn handle_status_stop(
     obj: &Map<String, Value>,
-    display: &mut display::DisplayManager,
+    display: &mut logone::LogOne,
 ) -> Result<()> {
     let id = obj
         .get("id")
@@ -105,7 +103,7 @@ pub fn is_status_id(id: u64) -> bool {
     }
 }
 
-async fn update_stats_display(display: &mut display::DisplayManager) -> Result<()> {
+async fn update_stats_display(display: &mut logone::LogOne) -> Result<()> {
     let (done, expected, running, failed) = unsafe { (DONE, EXPECTED, RUNNING, FAILED) };
 
     display.update_stats(done, expected, running, failed).await;

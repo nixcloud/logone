@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::ValueEnum;
 use console::style;
 use crossterm::{
-    cursor::{MoveToColumn, MoveToPreviousLine, RestorePosition, SavePosition},
+    cursor::{MoveToColumn, MoveToPreviousLine},
     terminal::{self, Clear, ClearType},
     ExecutableCommand,
 };
@@ -13,11 +13,19 @@ use std::io::{stdout, Write};
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Debug, Clone, Copy, ValueEnum, Eq, PartialEq)]
 pub enum LogLevel {
     Cargo,
     Errors,
     Verbose,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum, Eq, PartialEq)]
+pub enum LogStatus {
+    Started,
+    Stopped,
+    FinishedWithSuccess,
+    FinishedWithError,
 }
 
 #[derive(Debug, Clone)]
@@ -29,29 +37,30 @@ pub struct NixMessage {
     pub file: Option<String>,
 }
 
-pub type LogData = Vec<NixMessage>;
 pub type Id = u64;
 
-pub struct DisplayManager {
+pub struct LogOne {
     pub colored: bool,
     log_level: LogLevel,
     status_line_active: bool,
     targets: Vec<String>,
-    // State tracking to prevent unnecessary redraws
     last_stats: Option<(u64, u64, u64, u64)>,
     last_targets_hash: u64,
-    pub log_buffers: LazyLock<Mutex<HashMap<Id, LogData>>>,
+    pub nix_log_buffers: LazyLock<Mutex<HashMap<Id, Vec<NixMessage>>>>,
+    pub nix_log_buffers_state: LazyLock<Mutex<HashMap<Id, LogStatus>>>,
+    pub cargo_log_buffers: LazyLock<Mutex<HashMap<Id, Vec<String>>>>,
+    pub cargo_log_buffers_state: LazyLock<Mutex<HashMap<Id, LogStatus>>>,
     pub drv_to_id: LazyLock<Mutex<HashMap<String, u64>>>,
     active: bool,
 }
 
-impl Drop for DisplayManager {
+impl Drop for LogOne {
     fn drop(&mut self) {
         self.shutdown();
     }
 }
 
-impl DisplayManager {
+impl LogOne {
     pub fn new(colored: bool, log_level: LogLevel) -> Self {
         Self {
             colored,
@@ -60,22 +69,26 @@ impl DisplayManager {
             targets: Vec::new(),
             last_stats: None,
             last_targets_hash: 0,
-            log_buffers: LazyLock::new(|| Mutex::new(HashMap::new())),
+            nix_log_buffers: LazyLock::new(|| Mutex::new(HashMap::new())),
+            nix_log_buffers_state: LazyLock::new(|| Mutex::new(HashMap::new())),
+            cargo_log_buffers: LazyLock::new(|| Mutex::new(HashMap::new())),
+            cargo_log_buffers_state: LazyLock::new(|| Mutex::new(HashMap::new())),
             drv_to_id: LazyLock::new(|| Mutex::new(HashMap::new())),
             active: true,
         }
     }
 
     pub fn shutdown(&mut self) {
-        println!("Dropping DisplayManager");
         if self.active {
             self.active = false;
-            let ids: Vec<u64> = match self.log_buffers.lock() {
+            let ids: Vec<u64> = match self.nix_log_buffers.lock() {
                 Ok(buffers) => buffers.keys().cloned().collect(),
                 Err(_) => return,
             };
-            for id in ids {
-                self.print_log_buffer_by_id(id);
+            if self.level() == LogLevel::Verbose {
+                for id in ids {
+                    self.print_log_buffer_by_id(id);
+                }
             }
         }
     }
@@ -173,12 +186,11 @@ impl DisplayManager {
             },
             Err(_) => return,
         };
-
         self.print_log_buffer(id, drv)
     }
 
     fn print_log_buffer(&mut self, id: Id, drv: String) {
-        if let Ok(mut buffers) = self.log_buffers.lock() {
+        if let Ok(mut buffers) = self.nix_log_buffers.lock() {
             if let Some(buffer) = buffers.remove(&id) {
                 // Clear status line if active
                 if self.status_line_active {

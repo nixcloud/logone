@@ -1,4 +1,8 @@
-use crate::{display, logs, status, LogLevel};
+use crate::{
+    logone,
+    sinks::{cargo_logs, nix_build_statistics, nix_logs},
+    LogLevel,
+};
 use anyhow::{anyhow, Result};
 use regex::Regex;
 use serde_json::{Map, Value};
@@ -48,12 +52,11 @@ fn find_derivation_id_for_error(msg: &str) -> Option<u64> {
     // Use the same regex pattern as in logs.rs to extract derivation names from error messages
     let re = regex::Regex::new(r#"/nix/store/([a-zA-Z0-9_.+-]+)\.drv"#).ok()?;
     let captures = re.captures(msg)?;
-    let capture = captures.get(1)?
-        .as_str();
-    
+    let capture = captures.get(1)?.as_str();
+
     // Build the derivation name in the same format as logs.rs
     let drv_name = format!("building '/nix/store/{}.drv'", capture);
-    
+
     // Find the ID that matches this derivation name
     if let Ok(names) = get_derivation_names().lock() {
         for (id, name) in names.iter() {
@@ -62,7 +65,7 @@ fn find_derivation_id_for_error(msg: &str) -> Option<u64> {
             }
         }
     }
-    
+
     None
 }
 
@@ -93,34 +96,37 @@ fn check_stop_for_failure(obj: &Map<String, Value>) -> bool {
             return true;
         }
     }
-    
+
     // Check for result field that might indicate failure
     if let Some(result) = obj.get("result").and_then(|v| v.as_i64()) {
         if result != 0 {
             return true;
         }
     }
-    
+
     // Check for failure status fields
     if let Some(status) = obj.get("status").and_then(|v| v.as_str()) {
         if status.contains("fail") || status.contains("error") {
             return true;
         }
     }
-    
+
     // Check for error messages in the stop payload
     if let Some(msg) = obj.get("msg").and_then(|v| v.as_str()) {
-        let is_error = msg.contains("error") || msg.contains("failed") || 
-           msg.contains("Error") || msg.contains("Failed") || msg.contains("FAILED");
+        let is_error = msg.contains("error")
+            || msg.contains("failed")
+            || msg.contains("Error")
+            || msg.contains("Failed")
+            || msg.contains("FAILED");
         if is_error {
             return true;
         }
     }
-    
+
     false
 }
 
-pub async fn parse_nix_line(line: &str, display: &mut display::DisplayManager) -> Result<()> {
+pub async fn parse_nix_line(line: &str, display: &mut logone::LogOne) -> Result<()> {
     let json_content = if let Some(content) = line.strip_prefix("@nix ") {
         content
     } else {
@@ -166,7 +172,7 @@ pub async fn parse_nix_line(line: &str, display: &mut display::DisplayManager) -
                         .get("id")
                         .and_then(|v| v.as_u64())
                         .ok_or_else(|| anyhow!("Missing id in log line"))?;
-                    return crate::parse::parse_cargo_line(id, &content, display).await;
+                    return crate::parser::parse_cargo_line(id, &content, display).await;
                 }
                 LogLevel::Errors | LogLevel::Verbose => {
                     // In "errors" and "verbose" modes, ignore @cargo messages
@@ -178,11 +184,7 @@ pub async fn parse_nix_line(line: &str, display: &mut display::DisplayManager) -
     process_event(obj, action, message_type, display).await
 }
 
-pub async fn parse_cargo_line(
-    id: u64,
-    line: &str,
-    display: &mut display::DisplayManager,
-) -> Result<()> {
+pub async fn parse_cargo_line(id: u64, line: &str, display: &mut logone::LogOne) -> Result<()> {
     let json_content = if let Some(content) = line.strip_prefix("@cargo ") {
         content
     } else {
@@ -210,27 +212,27 @@ pub async fn process_event(
     obj: &Map<String, Value>,
     action: &str,
     message_type: Option<u64>,
-    display: &mut display::DisplayManager,
+    display: &mut logone::LogOne,
 ) -> Result<()> {
     // Apply filtering based on log level
     let log_level = display.level();
-    
+
     // Route based on action and type
     match (action, message_type) {
         // STATUS handling - type 104 starts, type 105 updates
         ("start", Some(104)) => {
-            status::handle_status_start(obj, display).await?;
+            nix_build_statistics::handle_status_start(obj, display).await?;
         }
         ("result", Some(105)) => {
-            status::handle_status_update(obj, display).await?;
+            nix_build_statistics::handle_status_update(obj, display).await?;
         }
         ("stop", _) => {
             // Check if this is a status stop or log stop
             let id = obj.get("id").and_then(|v| v.as_u64());
             if let Some(id) = id {
-                if status::is_status_id(id) {
-                    status::handle_status_stop(obj, display).await?;
-                } else if logs::has_log_buffer(id, display) {
+                if nix_build_statistics::is_status_id(id) {
+                    nix_build_statistics::handle_status_stop(obj, display).await?;
+                } else if nix_logs::has_log_buffer(id, display) {
                     // Handle log stop based on log level and failure status
                     match log_level {
                         LogLevel::Errors => {
@@ -239,21 +241,21 @@ pub async fn process_event(
                             if stop_indicates_failure {
                                 mark_derivation_failed(id);
                             }
-                            
+
                             // In errors mode, only flush logs if the derivation failed
                             if is_derivation_failed(id) {
-                                logs::handle_log_stop(obj, display).await?;
+                                nix_logs::handle_log_stop(obj, display).await?;
                             }
                             // For non-failed builds in errors mode, we skip handle_log_stop
                             // which effectively drops the buffer without printing
-                            
+
                             // Clean up tracking
                             remove_derivation_tracking(id);
                             remove_active_derivation(id);
                         }
                         LogLevel::Verbose => {
                             // In verbose mode, always flush all logs
-                            logs::handle_log_stop(obj, display).await?;
+                            nix_logs::handle_log_stop(obj, display).await?;
                             remove_active_derivation(id);
                         }
                         LogLevel::Cargo => {
@@ -272,8 +274,8 @@ pub async fn process_event(
             // Only process @nix logs in "errors" and "verbose" modes
             match log_level {
                 LogLevel::Errors | LogLevel::Verbose => {
-                    logs::handle_log_start(obj, display).await?;
-                    
+                    nix_logs::handle_log_start(obj, display).await?;
+
                     // Track active derivation for proper failure attribution
                     if let Some(id) = obj.get("id").and_then(|v| v.as_u64()) {
                         let text = obj.get("text").and_then(|v| v.as_str()).unwrap_or("");
@@ -289,7 +291,7 @@ pub async fn process_event(
             // Only process @nix log lines in "errors" and "verbose" modes
             match log_level {
                 LogLevel::Errors | LogLevel::Verbose => {
-                    logs::handle_log_line(obj, display).await?;
+                    nix_logs::handle_log_line(obj, display).await?;
                 }
                 LogLevel::Cargo => {
                     // In "cargo" mode, ignore @nix log lines
@@ -300,7 +302,7 @@ pub async fn process_event(
             // Only process @nix log phases in "errors" and "verbose" modes
             match log_level {
                 LogLevel::Errors | LogLevel::Verbose => {
-                    logs::handle_log_phase(obj, display).await?;
+                    nix_logs::handle_log_phase(obj, display).await?;
                 }
                 LogLevel::Cargo => {
                     // In "cargo" mode, ignore @nix log phases
@@ -319,12 +321,17 @@ pub async fn process_event(
                 LogLevel::Errors => {
                     let msg = obj.get("msg").and_then(|v| v.as_str()).unwrap_or("");
                     let level = obj.get("level").and_then(|v| v.as_u64()).unwrap_or(0);
-                    
+
                     // Check if this message indicates a build failure
-                    let is_error = level >= 3 || msg.contains("error") || msg.contains("failed") || 
-                       msg.contains("Error") || msg.contains("Failed") || msg.contains("FAILED") ||
-                       msg.contains("cannot") || msg.contains("Could not");
-                    
+                    let is_error = level >= 3
+                        || msg.contains("error")
+                        || msg.contains("failed")
+                        || msg.contains("Error")
+                        || msg.contains("Failed")
+                        || msg.contains("FAILED")
+                        || msg.contains("cannot")
+                        || msg.contains("Could not");
+
                     if is_error {
                         // Try to find the specific derivation this error belongs to
                         if let Some(failing_id) = find_derivation_id_for_error(msg) {
@@ -334,13 +341,13 @@ pub async fn process_event(
                         // Conservative approach: if we can't definitively attribute the error
                         // to a specific derivation, don't mark any as failed rather than
                         // incorrectly marking all active derivations as failed
-                        
-                        logs::handle_msg(obj, display).await?;
+
+                        nix_logs::handle_msg(obj, display).await?;
                     }
                 }
                 LogLevel::Verbose => {
                     // In "verbose" mode, handle all @nix messages
-                    logs::handle_msg(obj, display).await?;
+                    nix_logs::handle_msg(obj, display).await?;
                 }
             }
         }
@@ -350,7 +357,7 @@ pub async fn process_event(
             // Only process @cargo messages in "cargo" mode
             match log_level {
                 LogLevel::Cargo => {
-                    logs::handle_cargo_log_start(obj, display).await?;
+                    cargo_logs::handle_cargo_log_start(obj, display).await?;
                 }
                 LogLevel::Errors | LogLevel::Verbose => {
                     // In "errors" and "verbose" modes, ignore @cargo messages
@@ -361,7 +368,7 @@ pub async fn process_event(
             // Only process @cargo messages in "cargo" mode
             match log_level {
                 LogLevel::Cargo => {
-                    logs::handle_cargo_log_exit(obj, display).await?;
+                    cargo_logs::handle_cargo_log_exit(obj, display).await?;
                 }
                 LogLevel::Errors | LogLevel::Verbose => {
                     // In "errors" and "verbose" modes, ignore @cargo messages

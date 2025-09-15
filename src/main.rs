@@ -1,11 +1,10 @@
 use clap::Parser;
+use logone::LogLevel;
 use tokio::io::{stdin, AsyncBufReadExt, BufReader as AsyncBufReader};
-use display::LogLevel;
 
-mod display;
-mod logs;
-mod parse;
-mod status;
+mod logone;
+mod parser;
+mod sinks;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -33,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Initialize display manager
-    let mut display = display::DisplayManager::new(!args.no_color, args.level);
+    let mut logone = logone::LogOne::new(!args.no_color, args.level);
 
     // Read from stdin line by line
     let stdin = stdin();
@@ -41,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut lines = reader.lines();
 
     while let Some(line) = lines.next_line().await? {
-        if let Err(_) = parse::parse_nix_line(&line, &mut display).await {
+        if let Err(_) = parser::parse_nix_line(&line, &mut logone).await {
             // Silently ignore parse errors
         }
     }
