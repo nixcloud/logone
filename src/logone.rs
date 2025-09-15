@@ -43,7 +43,7 @@ pub struct LogOne {
     pub colored: bool,
     log_level: LogLevel,
     status_line_active: bool,
-    targets: Vec<String>,
+    targets: LazyLock<Mutex<HashMap<String, u64>>>,
     last_stats: Option<(u64, u64, u64, u64)>,
     last_targets_hash: u64,
     pub nix_log_buffers: LazyLock<Mutex<HashMap<Id, Vec<NixMessage>>>>,
@@ -66,7 +66,7 @@ impl LogOne {
             colored,
             log_level,
             status_line_active: false,
-            targets: Vec::new(),
+            targets: LazyLock::new(|| Mutex::new(HashMap::new())),
             last_stats: None,
             last_targets_hash: 0,
             nix_log_buffers: LazyLock::new(|| Mutex::new(HashMap::new())),
@@ -96,17 +96,39 @@ impl LogOne {
     pub fn level(&self) -> LogLevel {
         self.log_level
     }
+
+    // Thread-safe snapshot of targets with their counts
+    fn snapshot_targets(&self) -> Vec<(String, u64)> {
+        if let Ok(targets) = self.targets.lock() {
+            let mut snapshot: Vec<(String, u64)> = targets
+                .iter()
+                .filter(|(_, &count)| count > 0)
+                .map(|(name, &count)| (name.clone(), count))
+                .collect();
+            snapshot.sort_by(|a, b| a.0.cmp(&b.0)); // Sort alphabetically by name
+            snapshot
+        } else {
+            Vec::new()
+        }
+    }
+
     pub async fn target_add(&mut self, create_name: String) -> Result<()> {
-        self.targets.push(create_name);
-        self.last_targets_hash = self.calculate_targets_hash();
+        if let Ok(mut targets) = self.targets.lock() {
+            targets.entry(create_name).and_modify(|c| *c += 1).or_insert(1);
+        }
         Ok(())
     }
 
     pub async fn target_remove(&mut self, create_name: String) -> Result<()> {
-        if let Some(pos) = self.targets.iter().position(|x| *x == create_name) {
-            self.targets.remove(pos);
+        if let Ok(mut targets) = self.targets.lock() {
+            if let Some(count) = targets.get_mut(&create_name) {
+                *count -= 1;
+                if *count == 0 {
+                    targets.remove(&create_name);
+                }
+            }
+            // If target doesn't exist, ignore (no-op)
         }
-        self.last_targets_hash = self.calculate_targets_hash();
         Ok(())
     }
 
@@ -119,8 +141,9 @@ impl LogOne {
                 done, expected, running, failed
             );
 
-            // Get terminal width and crop targets to fit
-            let display_line = self.format_status_with_targets(&base_status);
+            // Get snapshot for consistent display
+            let targets_snapshot = self.snapshot_targets();
+            let display_line = self.format_status_with_targets(&base_status, &targets_snapshot);
 
             if self.colored {
                 let styled_base = format!(
@@ -132,7 +155,7 @@ impl LogOne {
                 );
 
                 // Get targets part and combine with styled base
-                let targets_part = self.get_targets_display(&base_status);
+                let targets_part = self.get_targets_display(&base_status, &targets_snapshot);
                 if targets_part.is_empty() {
                     println!("{}", styled_base);
                 } else {
@@ -149,7 +172,9 @@ impl LogOne {
 
     pub async fn update_stats(&mut self, done: u64, expected: u64, running: u64, failed: u64) {
         let current_stats = (done, expected, running, failed);
-        let current_targets_hash = self.calculate_targets_hash();
+        // Get snapshot for consistent hash and display
+        let targets_snapshot = self.snapshot_targets();
+        let current_targets_hash = self.calculate_targets_hash(&targets_snapshot);
 
         // Check if anything actually changed
         let stats_changed = self.last_stats.as_ref() != Some(&current_stats);
@@ -173,7 +198,7 @@ impl LogOne {
         );
 
         // Get terminal width and crop targets to fit
-        let display_line = self.format_status_with_targets(&base_status);
+        let display_line = self.format_status_with_targets(&base_status, &targets_snapshot);
 
         if self.colored {
             let styled_base = format!(
@@ -185,7 +210,7 @@ impl LogOne {
             );
 
             // Get targets part and combine with styled base
-            let targets_part = self.get_targets_display(&base_status);
+            let targets_part = self.get_targets_display(&base_status, &targets_snapshot);
             if targets_part.is_empty() {
                 println!("{}", styled_base);
             } else {
@@ -324,8 +349,8 @@ impl LogOne {
         }
     }
 
-    fn format_status_with_targets(&self, base_status: &str) -> String {
-        let targets_display = self.get_targets_display(base_status);
+    fn format_status_with_targets(&self, base_status: &str, targets_snapshot: &[(String, u64)]) -> String {
+        let targets_display = self.get_targets_display(base_status, targets_snapshot);
         if targets_display.is_empty() {
             base_status.to_string()
         } else {
@@ -333,8 +358,8 @@ impl LogOne {
         }
     }
 
-    fn get_targets_display(&self, base_status: &str) -> String {
-        if self.targets.is_empty() {
+    fn get_targets_display(&self, base_status: &str, targets_snapshot: &[(String, u64)]) -> String {
+        if targets_snapshot.is_empty() {
             return String::new();
         }
 
@@ -352,11 +377,17 @@ impl LogOne {
         let mut result = String::new();
         let mut first = true;
 
-        for target in &self.targets {
-            let addition = if first {
-                target.clone()
+        for (name, count) in targets_snapshot {
+            let target_display = if *count > 1 {
+                format!("{} (×{})", name, count)
             } else {
-                format!(", {}", target)
+                name.clone()
+            };
+
+            let addition = if first {
+                target_display
+            } else {
+                format!(", {}", target_display)
             };
 
             if result.len() + addition.len() <= space_for_targets {
@@ -371,9 +402,9 @@ impl LogOne {
         result
     }
 
-    fn calculate_targets_hash(&self) -> u64 {
+    fn calculate_targets_hash(&self, targets_snapshot: &[(String, u64)]) -> u64 {
         let mut hasher = DefaultHasher::new();
-        self.targets.hash(&mut hasher);
+        targets_snapshot.hash(&mut hasher);
         hasher.finish()
     }
 }
