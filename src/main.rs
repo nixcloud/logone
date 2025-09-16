@@ -1,6 +1,6 @@
 use clap::Parser;
 use logone::LogLevel;
-use tokio::io::{stdin, AsyncBufReadExt, BufReader as AsyncBufReader};
+use std::io::{stdin, BufRead, BufReader};
 
 mod logone;
 mod parser;
@@ -22,8 +22,7 @@ struct Args {
     level: LogLevel,
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
     if !args.json {
@@ -36,11 +35,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Read from stdin line by line
     let stdin = stdin();
-    let reader = AsyncBufReader::new(stdin);
-    let mut lines = reader.lines();
-
-    while let Some(line) = lines.next_line().await? {
-        if let Err(_) = parser::parse_nix_line(&line, &mut logone).await {
+    let reader = BufReader::new(stdin);
+    
+    for line in reader.lines() {
+        let line = line?;
+        if let Err(_) = parser::parse_nix_line(&line, &mut logone) {
             // Silently ignore parse errors
         }
     }
