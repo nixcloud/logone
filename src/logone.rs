@@ -11,7 +11,6 @@ use std::hash::{Hash, Hasher};
 use std::io::{stdout, Write};
 
 use std::collections::HashMap;
-use std::sync::{LazyLock, Mutex};
 
 #[derive(Debug, Clone, Copy, ValueEnum, Eq, PartialEq)]
 pub enum LogLevel {
@@ -43,14 +42,14 @@ pub struct LogOne {
     pub colored: bool,
     log_level: LogLevel,
     status_line_active: bool,
-    targets: LazyLock<Mutex<HashMap<String, u64>>>,
+    targets: HashMap<String, u64>,
     last_stats: Option<(u64, u64, u64, u64)>,
     last_targets_hash: u64,
-    pub nix_log_buffers: LazyLock<Mutex<HashMap<Id, Vec<NixMessage>>>>,
-    pub nix_log_buffers_state: LazyLock<Mutex<HashMap<Id, LogStatus>>>,
-    pub cargo_log_buffers: LazyLock<Mutex<HashMap<Id, Vec<String>>>>,
-    pub cargo_log_buffers_state: LazyLock<Mutex<HashMap<Id, LogStatus>>>,
-    pub drv_to_id: LazyLock<Mutex<HashMap<String, u64>>>,
+    pub nix_log_buffers: HashMap<Id, Vec<NixMessage>>,
+    pub nix_log_buffers_state: HashMap<Id, LogStatus>,
+    pub cargo_log_buffers: HashMap<Id, Vec<String>>,
+    pub cargo_log_buffers_state: HashMap<Id, LogStatus>,
+    pub drv_to_id: HashMap<String, u64>,
     active: bool,
 }
 
@@ -66,14 +65,14 @@ impl LogOne {
             colored,
             log_level,
             status_line_active: false,
-            targets: LazyLock::new(|| Mutex::new(HashMap::new())),
+            targets: HashMap::new(),
             last_stats: None,
             last_targets_hash: 0,
-            nix_log_buffers: LazyLock::new(|| Mutex::new(HashMap::new())),
-            nix_log_buffers_state: LazyLock::new(|| Mutex::new(HashMap::new())),
-            cargo_log_buffers: LazyLock::new(|| Mutex::new(HashMap::new())),
-            cargo_log_buffers_state: LazyLock::new(|| Mutex::new(HashMap::new())),
-            drv_to_id: LazyLock::new(|| Mutex::new(HashMap::new())),
+            nix_log_buffers: HashMap::new(),
+            nix_log_buffers_state: HashMap::new(),
+            cargo_log_buffers: HashMap::new(),
+            cargo_log_buffers_state: HashMap::new(),
+            drv_to_id: HashMap::new(),
             active: true,
         }
     }
