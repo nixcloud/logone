@@ -112,14 +112,14 @@ impl LogOne {
         }
     }
 
-    pub async fn target_add(&mut self, create_name: String) -> Result<()> {
+    pub fn target_add(&mut self, create_name: String) -> Result<()> {
         if let Ok(mut targets) = self.targets.lock() {
             targets.entry(create_name).and_modify(|c| *c += 1).or_insert(1);
         }
         Ok(())
     }
 
-    pub async fn target_remove(&mut self, create_name: String) -> Result<()> {
+    pub fn target_remove(&mut self, create_name: String) -> Result<()> {
         if let Ok(mut targets) = self.targets.lock() {
             if let Some(count) = targets.get_mut(&create_name) {
                 *count -= 1;
@@ -170,7 +170,7 @@ impl LogOne {
         }
     }
 
-    pub async fn update_stats(&mut self, done: u64, expected: u64, running: u64, failed: u64) {
+    pub fn update_stats(&mut self, done: u64, expected: u64, running: u64, failed: u64) {
         let current_stats = (done, expected, running, failed);
         // Get snapshot for consistent hash and display
         let targets_snapshot = self.snapshot_targets();
@@ -303,7 +303,7 @@ impl LogOne {
         }
     }
 
-    pub async fn print_message(&mut self, level: u64, msg: &str, file: Option<&str>) {
+    pub fn print_message(&mut self, level: u64, msg: &str, file: Option<&str>) {
         // Clear status line if active
         if self.status_line_active {
             let mut stdout = stdout();
