@@ -80,10 +80,7 @@ impl LogOne {
     pub fn shutdown(&mut self) {
         if self.active {
             self.active = false;
-            let ids: Vec<u64> = match self.nix_log_buffers.lock() {
-                Ok(buffers) => buffers.keys().cloned().collect(),
-                Err(_) => return,
-            };
+            let ids: Vec<u64> = self.nix_log_buffers.keys().cloned().collect();
             if self.level() == LogLevel::Verbose {
                 for id in ids {
                     self.print_log_buffer_by_id(id);
@@ -96,38 +93,30 @@ impl LogOne {
         self.log_level
     }
 
-    // Thread-safe snapshot of targets with their counts
+    // Snapshot of targets with their counts
     fn snapshot_targets(&self) -> Vec<(String, u64)> {
-        if let Ok(targets) = self.targets.lock() {
-            let mut snapshot: Vec<(String, u64)> = targets
-                .iter()
-                .filter(|(_, &count)| count > 0)
-                .map(|(name, &count)| (name.clone(), count))
-                .collect();
-            snapshot.sort_by(|a, b| a.0.cmp(&b.0)); // Sort alphabetically by name
-            snapshot
-        } else {
-            Vec::new()
-        }
+        let mut snapshot: Vec<(String, u64)> = self.targets
+            .iter()
+            .filter(|(_, &count)| count > 0)
+            .map(|(name, &count)| (name.clone(), count))
+            .collect();
+        snapshot.sort_by(|a, b| a.0.cmp(&b.0)); // Sort alphabetically by name
+        snapshot
     }
 
     pub fn target_add(&mut self, create_name: String) -> Result<()> {
-        if let Ok(mut targets) = self.targets.lock() {
-            targets.entry(create_name).and_modify(|c| *c += 1).or_insert(1);
-        }
+        self.targets.entry(create_name).and_modify(|c| *c += 1).or_insert(1);
         Ok(())
     }
 
     pub fn target_remove(&mut self, create_name: String) -> Result<()> {
-        if let Ok(mut targets) = self.targets.lock() {
-            if let Some(count) = targets.get_mut(&create_name) {
-                *count -= 1;
-                if *count == 0 {
-                    targets.remove(&create_name);
-                }
+        if let Some(count) = self.targets.get_mut(&create_name) {
+            *count -= 1;
+            if *count == 0 {
+                self.targets.remove(&create_name);
             }
-            // If target doesn't exist, ignore (no-op)
         }
+        // If target doesn't exist, ignore (no-op)
         Ok(())
     }
 
@@ -226,39 +215,24 @@ impl LogOne {
     }
 
     pub fn print_log_buffer_by_drv(&mut self, drv: String) {
-        let id: Id = {
-            let drv_to_id = match self.drv_to_id.lock() {
-                Ok(guard) => guard,
-                Err(_) => return, // bail out if the lock is poisoned
-            };
-            match drv_to_id.get(&drv) {
-                Some(id) => *id, // extract the value
-                None => return,  // early exit if not found
-            }
+        let id: Id = match self.drv_to_id.get(&drv) {
+            Some(id) => *id,
+            None => return,
         };
         self.print_log_buffer(id, drv)
     }
 
     pub fn print_log_buffer_by_id(&mut self, id: Id) {
-        let drv: String = match self.drv_to_id.lock() {
-            Ok(drv_to_id) => match drv_to_id.iter().find(|(_, &v)| v == id) {
-                Some((k, _)) => k.clone(),
-                None => return,
-            },
-            Err(_) => return,
+        let drv: String = match self.drv_to_id.iter().find(|(_, &v)| v == id) {
+            Some((k, _)) => k.clone(),
+            None => return,
         };
         self.print_log_buffer(id, drv)
     }
 
     fn print_log_buffer(&mut self, id: Id, drv: String) {
-        // Extract the buffer first, then drop the mutex guard
-        let buffer = {
-            if let Ok(mut buffers) = self.nix_log_buffers.lock() {
-                buffers.remove(&id)
-            } else {
-                return;
-            }
-        };
+        // Extract the buffer
+        let buffer = self.nix_log_buffers.remove(&id);
 
         if let Some(buffer) = buffer {
             // Clear status line if active
