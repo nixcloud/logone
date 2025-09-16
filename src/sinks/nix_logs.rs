@@ -17,19 +17,12 @@ pub fn handle_log_start(obj: &Map<String, Value>, logone: &mut logone::LogOne) -
         .to_string();
 
     // Create new log buffer for this id
-    if let Ok(mut buffers) = logone.nix_log_buffers.lock() {
-        buffers.insert(id, Vec::new());
-    }
-
-    if let Ok(mut buffers_state) = logone.nix_log_buffers_state.lock() {
-        buffers_state.insert(id, LogStatus::Started);
-    }
+    logone.nix_log_buffers.insert(id, Vec::new());
+    logone.nix_log_buffers_state.insert(id, LogStatus::Started);
 
     // Map id to derivation name
-    if let Ok(mut drv_to_id) = logone.drv_to_id.lock() {
-        //println!("{}", text.clone());
-        drv_to_id.insert(text.clone(), id);
-    }
+    //println!("{}", text.clone());
+    logone.drv_to_id.insert(text.clone(), id);
 
     Ok(())
 }
@@ -61,10 +54,8 @@ pub fn handle_log_line(obj: &Map<String, Value>, logone: &mut logone::LogOne) ->
     };
 
     // Add to buffer
-    if let Ok(mut buffers) = logone.nix_log_buffers.lock() {
-        if let Some(buffer) = buffers.get_mut(&id) {
-            buffer.push(message);
-        }
+    if let Some(buffer) = logone.nix_log_buffers.get_mut(&id) {
+        buffer.push(message);
     }
 
     Ok(())
@@ -97,10 +88,8 @@ pub fn handle_log_phase(obj: &Map<String, Value>, logone: &mut logone::LogOne) -
     };
 
     // Add to buffer
-    if let Ok(mut buffers) = logone.nix_log_buffers.lock() {
-        if let Some(buffer) = buffers.get_mut(&id) {
-            buffer.push(message);
-        }
+    if let Some(buffer) = logone.nix_log_buffers.get_mut(&id) {
+        buffer.push(message);
     }
 
     Ok(())
@@ -111,9 +100,7 @@ pub fn handle_log_stop(obj: &Map<String, Value>, logone: &mut logone::LogOne) ->
         .get("id")
         .and_then(|v| v.as_u64())
         .ok_or_else(|| anyhow!("Missing id in log phase"))?;
-    if let Ok(mut buffers_state) = logone.nix_log_buffers_state.lock() {
-        buffers_state.insert(id, LogStatus::Stopped);
-    }
+    logone.nix_log_buffers_state.insert(id, LogStatus::Stopped);
     Ok(())
 }
 
@@ -145,17 +132,9 @@ pub fn handle_msg(obj: &Map<String, Value>, logone: &mut logone::LogOne) -> Resu
 }
 
 pub fn has_log_buffer(id: u64, logone: &mut logone::LogOne) -> bool {
-    if let Ok(buffers) = logone.nix_log_buffers.lock() {
-        buffers.contains_key(&id)
-    } else {
-        false
-    }
+    logone.nix_log_buffers.contains_key(&id)
 }
 
 pub fn query_logs_by_id(id: u64, logone: &mut logone::LogOne) -> Option<Vec<NixMessage>> {
-    if let Ok(buffers) = logone.nix_log_buffers.lock() {
-        buffers.get(&id).cloned()
-    } else {
-        None
-    }
+    logone.nix_log_buffers.get(&id).cloned()
 }

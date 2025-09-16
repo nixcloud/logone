@@ -13,13 +13,8 @@ pub fn handle_cargo_log_start(
         .ok_or_else(|| anyhow!("Missing id in log start"))?;
 
     // Create new log buffer for this id
-    if let Ok(mut buffers) = logone.cargo_log_buffers.lock() {
-        buffers.insert(id, Vec::new());
-    }
-
-    if let Ok(mut buffers_state) = logone.cargo_log_buffers_state.lock() {
-        buffers_state.insert(id, LogStatus::Started);
-    }
+    logone.cargo_log_buffers.insert(id, Vec::new());
+    logone.cargo_log_buffers_state.insert(id, LogStatus::Started);
 
     let crate_name = obj
         .get("crate_name")
@@ -71,26 +66,22 @@ pub fn handle_cargo_log_exit(
         })
         .unwrap_or_else(Vec::new);
 
-    if let Ok(mut buffers_state) = logone.cargo_log_buffers_state.lock() {
-        buffers_state.insert(id, LogStatus::Started);
-        match rustc_exit_code {
-            0 => {
-                buffers_state.insert(id, LogStatus::FinishedWithSuccess);
-            }
-            1 => {
-                buffers_state.insert(id, LogStatus::FinishedWithError);
-            }
-            _ => {
-                buffers_state.insert(id, LogStatus::Stopped);
-            }
-        };
-    }
+    logone.cargo_log_buffers_state.insert(id, LogStatus::Started);
+    match rustc_exit_code {
+        0 => {
+            logone.cargo_log_buffers_state.insert(id, LogStatus::FinishedWithSuccess);
+        }
+        1 => {
+            logone.cargo_log_buffers_state.insert(id, LogStatus::FinishedWithError);
+        }
+        _ => {
+            logone.cargo_log_buffers_state.insert(id, LogStatus::Stopped);
+        }
+    };
 
-    if let Ok(mut buffers) = logone.cargo_log_buffers.lock() {
-        if let Some(buffer) = buffers.get_mut(&id) {
-            for msg in rendered_messages.clone() {
-                buffer.push(msg);
-            }
+    if let Some(buffer) = logone.cargo_log_buffers.get_mut(&id) {
+        for msg in rendered_messages.clone() {
+            buffer.push(msg);
         }
     }
 
