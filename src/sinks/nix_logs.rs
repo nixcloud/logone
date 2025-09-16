@@ -4,7 +4,7 @@ use logone::{LogStatus, NixMessage};
 use regex::Regex;
 use serde_json::{Map, Value};
 
-pub async fn handle_log_start(obj: &Map<String, Value>, logone: &mut logone::LogOne) -> Result<()> {
+pub fn handle_log_start(obj: &Map<String, Value>, logone: &mut logone::LogOne) -> Result<()> {
     let id = obj
         .get("id")
         .and_then(|v| v.as_u64())
@@ -34,7 +34,7 @@ pub async fn handle_log_start(obj: &Map<String, Value>, logone: &mut logone::Log
     Ok(())
 }
 
-pub async fn handle_log_line(obj: &Map<String, Value>, logone: &mut logone::LogOne) -> Result<()> {
+pub fn handle_log_line(obj: &Map<String, Value>, logone: &mut logone::LogOne) -> Result<()> {
     let id = obj
         .get("id")
         .and_then(|v| v.as_u64())
@@ -70,7 +70,7 @@ pub async fn handle_log_line(obj: &Map<String, Value>, logone: &mut logone::LogO
     Ok(())
 }
 
-pub async fn handle_log_phase(obj: &Map<String, Value>, logone: &mut logone::LogOne) -> Result<()> {
+pub fn handle_log_phase(obj: &Map<String, Value>, logone: &mut logone::LogOne) -> Result<()> {
     let id = obj
         .get("id")
         .and_then(|v| v.as_u64())
@@ -106,7 +106,7 @@ pub async fn handle_log_phase(obj: &Map<String, Value>, logone: &mut logone::Log
     Ok(())
 }
 
-pub async fn handle_log_stop(obj: &Map<String, Value>, logone: &mut logone::LogOne) -> Result<()> {
+pub fn handle_log_stop(obj: &Map<String, Value>, logone: &mut logone::LogOne) -> Result<()> {
     let id = obj
         .get("id")
         .and_then(|v| v.as_u64())
@@ -117,7 +117,7 @@ pub async fn handle_log_stop(obj: &Map<String, Value>, logone: &mut logone::LogO
     Ok(())
 }
 
-pub async fn handle_msg(obj: &Map<String, Value>, logone: &mut logone::LogOne) -> Result<()> {
+pub fn handle_msg(obj: &Map<String, Value>, logone: &mut logone::LogOne) -> Result<()> {
     let level = obj.get("level").and_then(|v| v.as_u64()).unwrap_or(0);
     let msg = obj.get("msg").and_then(|v| v.as_str()).unwrap_or("");
     let file = obj.get("file").and_then(|v| v.as_str());
@@ -138,7 +138,7 @@ pub async fn handle_msg(obj: &Map<String, Value>, logone: &mut logone::LogOne) -
 
     // Show messages with level 1-3 (WARN, NOTICE, INFO)
     if level >= 1 && level <= 3 {
-        logone.print_message(level, msg, file).await;
+        logone.print_message(level, msg, file);
     }
 
     Ok(())

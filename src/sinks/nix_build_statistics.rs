@@ -11,7 +11,7 @@ static mut RUNNING: u64 = 0;
 static mut FAILED: u64 = 0;
 static STATUS_IDS: LazyLock<Mutex<HashSet<u64>>> = LazyLock::new(|| Mutex::new(HashSet::new()));
 
-pub async fn handle_status_start(obj: &Map<String, Value>, _: &mut logone::LogOne) -> Result<()> {
+pub fn handle_status_start(obj: &Map<String, Value>, _: &mut logone::LogOne) -> Result<()> {
     let id = obj
         .get("id")
         .and_then(|v| v.as_u64())
@@ -24,7 +24,7 @@ pub async fn handle_status_start(obj: &Map<String, Value>, _: &mut logone::LogOn
     Ok(())
 }
 
-pub async fn handle_status_update(
+pub fn handle_status_update(
     obj: &Map<String, Value>,
     display: &mut logone::LogOne,
 ) -> Result<()> {
@@ -67,12 +67,12 @@ pub async fn handle_status_update(
         FAILED = failed;
     }
 
-    update_stats_display(display).await?;
+    update_stats_display(display)?;
 
     Ok(())
 }
 
-pub async fn handle_status_stop(
+pub fn handle_status_stop(
     obj: &Map<String, Value>,
     display: &mut logone::LogOne,
 ) -> Result<()> {
@@ -87,7 +87,7 @@ pub async fn handle_status_stop(
     }
 
     // Keep the stats values, don't reset them
-    update_stats_display(display).await?;
+    update_stats_display(display)?;
 
     Ok(())
 }
@@ -100,9 +100,9 @@ pub fn is_status_id(id: u64) -> bool {
     }
 }
 
-async fn update_stats_display(display: &mut logone::LogOne) -> Result<()> {
+fn update_stats_display(display: &mut logone::LogOne) -> Result<()> {
     let (done, expected, running, failed) = unsafe { (DONE, EXPECTED, RUNNING, FAILED) };
 
-    display.update_stats(done, expected, running, failed).await;
+    display.update_stats(done, expected, running, failed);
     Ok(())
 }
