@@ -24,10 +24,7 @@ pub fn handle_status_start(obj: &Map<String, Value>, _: &mut logone::LogOne) -> 
     Ok(())
 }
 
-pub fn handle_status_update(
-    obj: &Map<String, Value>,
-    display: &mut logone::LogOne,
-) -> Result<()> {
+pub fn handle_status_update(obj: &Map<String, Value>, display: &mut logone::LogOne) -> Result<()> {
     let id = obj
         .get("id")
         .and_then(|v| v.as_u64())
@@ -72,10 +69,7 @@ pub fn handle_status_update(
     Ok(())
 }
 
-pub fn handle_status_stop(
-    obj: &Map<String, Value>,
-    display: &mut logone::LogOne,
-) -> Result<()> {
+pub fn handle_status_stop(obj: &Map<String, Value>, display: &mut logone::LogOne) -> Result<()> {
     let id = obj
         .get("id")
         .and_then(|v| v.as_u64())

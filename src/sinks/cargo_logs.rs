@@ -3,10 +3,7 @@ use anyhow::{anyhow, Result};
 use serde_json::{Map, Value};
 
 // echo "@cargo { \"type\":0, \"crate_name\":\"{{{crate_name}}}\", \"id\":\"{{{fullname}}}\" }"
-pub fn handle_cargo_log_start(
-    obj: &Map<String, Value>,
-    logone: &mut logone::LogOne,
-) -> Result<()> {
+pub fn handle_cargo_log_start(obj: &Map<String, Value>, logone: &mut logone::LogOne) -> Result<()> {
     let id = obj
         .get("id")
         .and_then(|v| v.as_u64())
@@ -14,7 +11,9 @@ pub fn handle_cargo_log_start(
 
     // Create new log buffer for this id
     logone.cargo_log_buffers.insert(id, Vec::new());
-    logone.cargo_log_buffers_state.insert(id, LogStatus::Started);
+    logone
+        .cargo_log_buffers_state
+        .insert(id, LogStatus::Started);
 
     let crate_name = obj
         .get("crate_name")
@@ -32,10 +31,7 @@ pub fn handle_cargo_log_start(
 }
 
 // @cargo {type: 2, id: $fullname, crate_name: $crate_name, rustc_exit_code: ($exit_code|tonumber), rustc_messages: [ some embedded rustc output messages]}
-pub fn handle_cargo_log_exit(
-    obj: &Map<String, Value>,
-    logone: &mut logone::LogOne,
-) -> Result<()> {
+pub fn handle_cargo_log_exit(obj: &Map<String, Value>, logone: &mut logone::LogOne) -> Result<()> {
     let id = obj
         .get("id")
         .and_then(|v| v.as_u64())
@@ -66,16 +62,19 @@ pub fn handle_cargo_log_exit(
         })
         .unwrap_or_else(Vec::new);
 
-    logone.cargo_log_buffers_state.insert(id, LogStatus::Started);
+    logone
+        .cargo_log_buffers_state
+        .insert(id, LogStatus::Started);
     match rustc_exit_code {
         0 => {
-            logone.cargo_log_buffers_state.insert(id, LogStatus::FinishedWithSuccess);
-        }
-        1 => {
-            logone.cargo_log_buffers_state.insert(id, LogStatus::FinishedWithError);
+            logone
+                .cargo_log_buffers_state
+                .insert(id, LogStatus::FinishedWithSuccess);
         }
         _ => {
-            logone.cargo_log_buffers_state.insert(id, LogStatus::Stopped);
+            logone
+                .cargo_log_buffers_state
+                .insert(id, LogStatus::FinishedWithError);
         }
     };
 
@@ -88,8 +87,7 @@ pub fn handle_cargo_log_exit(
     if logone.level() == logone::LogLevel::Cargo {
         for msg in rendered_messages {
             let file: Option<&str> = None;
-            logone
-                .print_message(rustc_exit_code, msg.as_str(), file);
+            logone.print_message(rustc_exit_code, msg.as_str(), file);
         }
     }
 

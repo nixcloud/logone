@@ -2,7 +2,7 @@
 
 this rust project 'logone' implements a rust program and crate library to consume the nix output produced by:
 
-    `nix build --log-format internal-json`
+    nix build --log-format internal-json
 
 and attempts to make nix logging less verbose / nosiy to be used in the nix backend of cargo.
 
@@ -32,6 +32,15 @@ a good illustration on how to @nix protocol works and can be implemented. it som
 * https://github.com/nixos/nix/issues/13909
 * https://github.com/nixos/nix/issues/13910
 * https://github.com/nixos/nix/issues/13935
+
+# usage
+
+    nix build --log-format internal-json 2>&1 | logone --json --level cargo
+
+or
+
+    nix build --log-format internal-json 2> >(logone --json --level cargo)
+
 
 # examples
 

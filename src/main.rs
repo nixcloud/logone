@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Read from stdin line by line
     let stdin = stdin();
     let reader = BufReader::new(stdin);
-    
+
     for line in reader.lines() {
         let line = line?;
         if let Err(_) = parser::parse_nix_line(&line, &mut logone) {

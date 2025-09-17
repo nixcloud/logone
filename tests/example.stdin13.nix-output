@@ -1,0 +1,18 @@
+[nixos@nixos:~/ka4h2]$ nix build --file /home/nixos/ka4h2/target/debug/nix/cargo_build_caller.nix --out-link /home/nixos/ka4h2/target/debug/nix/result_cargo_build -L target --json
+trace: No Cargo.dependencies.nix found
+prettyplease> Running phase: unpackPhase
+prettyplease> Running phase: patchPhase
+prettyplease> Running phase: updateAutotoolsGnuConfigScriptsPhase
+prettyplease> Running phase: configurePhase
+prettyplease> no configure script, doing nothing
+prettyplease> Running phase: buildPhase
+prettyplease> Compiling prettyplease-0_2_37-script_build_run-cdb69dfae8683d1b
+prettyplease> @cargo { "type":0, "crate_name":"prettyplease", "id":"prettyplease-0_2_37-script_build_run-cdb69dfae8683d1b" }
+prettyplease> +++ /nix/store/hz807sjm6hip066qbx4hyjyh7jyz7md8-prettyplease-0_2_37-script_build-dfa7ee66a4655c3f/build_script_build
+prettyplease> +++ /nix/store/2q06anqfbq2jy1mjaw2qn2zc1cqhx8bg-cargo-build_script_build-parser-0.1.0/bin/cargo-build_script_build-parser /nix/store/932hcsi5fxz5wrpzsy0rb41alsvn6i9i-prettyplease-0_2_37-script_build_run-cdb69dfae8683d1b/nix/build_script_build.out --out-path /nix/store/932hcsi5fxz5wrpzsy0rb41alsvn6i9i-prettyplease-0_2_37-script_build_run-cdb69dfae8683d1b/nix write-results
+prettyplease>     0    cargo:rerun-if-changed=build.rs
+prettyplease>     1    cargo:rustc-check-cfg=cfg(exhaustive)
+prettyplease>     2    cargo:rustc-check-cfg=cfg(prettyplease_debug)
+prettyplease>     3    cargo:rustc-check-cfg=cfg(prettyplease_debug_indent)
+prettyplease> >   4    cargo:VERSION=0.2.37
+prettyplease> Error: "Command: 'VERSION' on line: '4' not implemented yet!"

@@ -95,7 +95,8 @@ impl LogOne {
 
     // Snapshot of targets with their counts
     fn snapshot_targets(&self) -> Vec<(String, u64)> {
-        let mut snapshot: Vec<(String, u64)> = self.targets
+        let mut snapshot: Vec<(String, u64)> = self
+            .targets
             .iter()
             .filter(|(_, &count)| count > 0)
             .map(|(name, &count)| (name.clone(), count))
@@ -105,7 +106,10 @@ impl LogOne {
     }
 
     pub fn target_add(&mut self, create_name: String) -> Result<()> {
-        self.targets.entry(create_name).and_modify(|c| *c += 1).or_insert(1);
+        self.targets
+            .entry(create_name)
+            .and_modify(|c| *c += 1)
+            .or_insert(1);
         Ok(())
     }
 
@@ -270,7 +274,7 @@ impl LogOne {
             }
             println!(); // Empty line after log
             stdout().flush().unwrap();
-            
+
             // Redraw status line after printing log buffer
             self.redraw_status();
         }
@@ -306,7 +310,7 @@ impl LogOne {
         }
 
         stdout().flush().unwrap();
-        
+
         // Redraw status line after printing message
         self.redraw_status();
     }
@@ -322,7 +326,11 @@ impl LogOne {
         }
     }
 
-    fn format_status_with_targets(&self, base_status: &str, targets_snapshot: &[(String, u64)]) -> String {
+    fn format_status_with_targets(
+        &self,
+        base_status: &str,
+        targets_snapshot: &[(String, u64)],
+    ) -> String {
         let targets_display = self.get_targets_display(base_status, targets_snapshot);
         if targets_display.is_empty() {
             base_status.to_string()

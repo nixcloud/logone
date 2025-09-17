@@ -126,7 +126,7 @@ fn check_stop_for_failure(obj: &Map<String, Value>) -> bool {
     false
 }
 
-pub fn parse_nix_line(line: &str, display: &mut logone::LogOne) -> Result<()> {
+pub fn parse_nix_line(line: &str, logone: &mut logone::LogOne) -> Result<()> {
     let json_content = if let Some(content) = line.strip_prefix("@nix ") {
         content
     } else {
@@ -166,13 +166,13 @@ pub fn parse_nix_line(line: &str, display: &mut logone::LogOne) -> Result<()> {
 
         if content.starts_with("@cargo") {
             // Only process @cargo messages in "cargo" mode
-            match display.level() {
+            match logone.level() {
                 LogLevel::Cargo => {
                     let id = obj
                         .get("id")
                         .and_then(|v| v.as_u64())
                         .ok_or_else(|| anyhow!("Missing id in log line"))?;
-                    return crate::parser::parse_cargo_line(id, &content, display);
+                    return crate::parser::parse_cargo_line(id, &content, logone);
                 }
                 LogLevel::Errors | LogLevel::Verbose => {
                     // In "errors" and "verbose" modes, ignore @cargo messages
@@ -181,10 +181,10 @@ pub fn parse_nix_line(line: &str, display: &mut logone::LogOne) -> Result<()> {
             }
         }
     }
-    process_event(obj, action, message_type, display)
+    process_event(obj, action, message_type, logone)
 }
 
-pub fn parse_cargo_line(id: u64, line: &str, display: &mut logone::LogOne) -> Result<()> {
+pub fn parse_cargo_line(id: u64, line: &str, logone: &mut logone::LogOne) -> Result<()> {
     let json_content = if let Some(content) = line.strip_prefix("@cargo ") {
         content
     } else {
@@ -205,34 +205,34 @@ pub fn parse_cargo_line(id: u64, line: &str, display: &mut logone::LogOne) -> Re
     obj.insert("id".to_string(), id.into());
     // Get optional type field
     let message_type: Option<u64> = obj.get("type").and_then(|v| v.as_u64());
-    process_event(obj, "cargo", message_type, display)
+    process_event(obj, "cargo", message_type, logone)
 }
 
 pub fn process_event(
     obj: &Map<String, Value>,
     action: &str,
     message_type: Option<u64>,
-    display: &mut logone::LogOne,
+    logone: &mut logone::LogOne,
 ) -> Result<()> {
     // Apply filtering based on log level
-    let log_level = display.level();
+    let log_level = logone.level();
 
     // Route based on action and type
     match (action, message_type) {
         // STATUS handling - type 104 starts, type 105 updates
         ("start", Some(104)) => {
-            nix_build_statistics::handle_status_start(obj, display)?;
+            nix_build_statistics::handle_status_start(obj, logone)?;
         }
         ("result", Some(105)) => {
-            nix_build_statistics::handle_status_update(obj, display)?;
+            nix_build_statistics::handle_status_update(obj, logone)?;
         }
         ("stop", _) => {
             // Check if this is a status stop or log stop
             let id = obj.get("id").and_then(|v| v.as_u64());
             if let Some(id) = id {
                 if nix_build_statistics::is_status_id(id) {
-                    nix_build_statistics::handle_status_stop(obj, display)?;
-                } else if nix_logs::has_log_buffer(id, display) {
+                    nix_build_statistics::handle_status_stop(obj, logone)?;
+                } else if nix_logs::has_log_buffer(id, logone) {
                     // Handle log stop based on log level and failure status
                     match log_level {
                         LogLevel::Errors => {
@@ -244,7 +244,7 @@ pub fn process_event(
 
                             // In errors mode, only flush logs if the derivation failed
                             if is_derivation_failed(id) {
-                                nix_logs::handle_log_stop(obj, display)?;
+                                nix_logs::handle_log_stop(obj, logone)?;
                             }
                             // For non-failed builds in errors mode, we skip handle_log_stop
                             // which effectively drops the buffer without printing
@@ -255,7 +255,7 @@ pub fn process_event(
                         }
                         LogLevel::Verbose => {
                             // In verbose mode, always flush all logs
-                            nix_logs::handle_log_stop(obj, display)?;
+                            nix_logs::handle_log_stop(obj, logone)?;
                             remove_active_derivation(id);
                         }
                         LogLevel::Cargo => {
@@ -274,7 +274,7 @@ pub fn process_event(
             // Only process @nix logs in "errors" and "verbose" modes
             match log_level {
                 LogLevel::Errors | LogLevel::Verbose => {
-                    nix_logs::handle_log_start(obj, display)?;
+                    nix_logs::handle_log_start(obj, logone)?;
 
                     // Track active derivation for proper failure attribution
                     if let Some(id) = obj.get("id").and_then(|v| v.as_u64()) {
@@ -291,7 +291,7 @@ pub fn process_event(
             // Only process @nix log lines in "errors" and "verbose" modes
             match log_level {
                 LogLevel::Errors | LogLevel::Verbose => {
-                    nix_logs::handle_log_line(obj, display)?;
+                    nix_logs::handle_log_line(obj, logone)?;
                 }
                 LogLevel::Cargo => {
                     // In "cargo" mode, ignore @nix log lines
@@ -302,7 +302,7 @@ pub fn process_event(
             // Only process @nix log phases in "errors" and "verbose" modes
             match log_level {
                 LogLevel::Errors | LogLevel::Verbose => {
-                    nix_logs::handle_log_phase(obj, display)?;
+                    nix_logs::handle_log_phase(obj, logone)?;
                 }
                 LogLevel::Cargo => {
                     // In "cargo" mode, ignore @nix log phases
@@ -342,12 +342,12 @@ pub fn process_event(
                         // to a specific derivation, don't mark any as failed rather than
                         // incorrectly marking all active derivations as failed
 
-                        nix_logs::handle_msg(obj, display)?;
+                        nix_logs::handle_msg(obj, logone)?;
                     }
                 }
                 LogLevel::Verbose => {
                     // In "verbose" mode, handle all @nix messages
-                    nix_logs::handle_msg(obj, display)?;
+                    nix_logs::handle_msg(obj, logone)?;
                 }
             }
         }
@@ -357,7 +357,7 @@ pub fn process_event(
             // Only process @cargo messages in "cargo" mode
             match log_level {
                 LogLevel::Cargo => {
-                    cargo_logs::handle_cargo_log_start(obj, display)?;
+                    cargo_logs::handle_cargo_log_start(obj, logone)?;
                 }
                 LogLevel::Errors | LogLevel::Verbose => {
                     // In "errors" and "verbose" modes, ignore @cargo messages
@@ -368,7 +368,7 @@ pub fn process_event(
             // Only process @cargo messages in "cargo" mode
             match log_level {
                 LogLevel::Cargo => {
-                    cargo_logs::handle_cargo_log_exit(obj, display)?;
+                    cargo_logs::handle_cargo_log_exit(obj, logone)?;
                 }
                 LogLevel::Errors | LogLevel::Verbose => {
                     // In "errors" and "verbose" modes, ignore @cargo messages
