@@ -131,7 +131,7 @@ pub fn handle_cargo_log_build_exit(
         })
         .unwrap_or_else(Vec::new);
 
-    println!("{:#?}", messages);
+    // println!("{:#?}", messages);
 
     logone
         .cargo_log_buffers_state
