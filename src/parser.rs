@@ -368,7 +368,19 @@ pub fn process_event(
             // Only process @cargo messages in "cargo" mode
             match log_level {
                 LogLevel::Cargo => {
-                    cargo_logs::handle_cargo_log_exit(obj, logone)?;
+                    cargo_logs::handle_cargo_log_rustc_exit(obj, logone)?;
+                }
+                LogLevel::Errors | LogLevel::Verbose => {
+                    // In "errors" and "verbose" modes, ignore @cargo messages
+                }
+            }
+        }
+
+        ("cargo", Some(3)) => {
+            // Only process @cargo messages in "cargo" mode
+            match log_level {
+                LogLevel::Cargo => {
+                    cargo_logs::handle_cargo_log_build_exit(obj, logone)?;
                 }
                 LogLevel::Errors | LogLevel::Verbose => {
                     // In "errors" and "verbose" modes, ignore @cargo messages

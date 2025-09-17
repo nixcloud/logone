@@ -30,8 +30,12 @@ pub fn handle_cargo_log_start(obj: &Map<String, Value>, logone: &mut logone::Log
     Ok(())
 }
 
-// @cargo {type: 2, id: $fullname, crate_name: $crate_name, rustc_exit_code: ($exit_code|tonumber), rustc_messages: [ some embedded rustc output messages]}
-pub fn handle_cargo_log_exit(obj: &Map<String, Value>, logone: &mut logone::LogOne) -> Result<()> {
+// @cargo {type: 2, id: $fullname, crate_name: $crate_name, rustc_exit_code: ($exit_code|tonumber), rustc_messages: [ { rendered: "..." }, { rendered: "..." }, ... ]}
+pub fn handle_cargo_log_rustc_exit(
+    obj: &Map<String, Value>,
+    logone: &mut logone::LogOne,
+) -> Result<()> {
+    //println!("{:#?}", obj);
     let id = obj
         .get("id")
         .and_then(|v| v.as_u64())
@@ -62,6 +66,8 @@ pub fn handle_cargo_log_exit(obj: &Map<String, Value>, logone: &mut logone::LogO
         })
         .unwrap_or_else(Vec::new);
 
+    //println!("{:#?}", rendered_messages);
+
     logone
         .cargo_log_buffers_state
         .insert(id, LogStatus::Started);
@@ -88,6 +94,71 @@ pub fn handle_cargo_log_exit(obj: &Map<String, Value>, logone: &mut logone::LogO
         for msg in rendered_messages {
             let file: Option<&str> = None;
             logone.print_message(rustc_exit_code, msg.as_str(), file);
+        }
+    }
+
+    Ok(())
+}
+
+// @cargo {type: 4, crate_name: $crate_name, exit_code: ($exit_code|tonumber), messages: [ "a", "b", "c" ]}
+pub fn handle_cargo_log_build_exit(
+    obj: &Map<String, Value>,
+    logone: &mut logone::LogOne,
+) -> Result<()> {
+    //println!("{:#?}", obj);
+    let id = obj
+        .get("id")
+        .and_then(|v| v.as_u64())
+        .ok_or_else(|| anyhow!("Missing id in log phase"))?;
+
+    let crate_name = obj
+        .get("crate_name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    logone.target_remove(crate_name)?;
+
+    let exit_code: u64 = obj.get("exit_code").and_then(|v| v.as_u64()).unwrap();
+
+    let messages: Vec<String> = obj
+        .get("messages")
+        .and_then(|msgs| msgs.as_array())
+        .map(|msgs| {
+            msgs.iter()
+                .filter_map(|msg| msg.as_str().map(|s| s.to_string()))
+                .collect()
+        })
+        .unwrap_or_else(Vec::new);
+
+    println!("{:#?}", messages);
+
+    logone
+        .cargo_log_buffers_state
+        .insert(id, LogStatus::Started);
+    match exit_code {
+        0 => {
+            logone
+                .cargo_log_buffers_state
+                .insert(id, LogStatus::FinishedWithSuccess);
+        }
+        _ => {
+            logone
+                .cargo_log_buffers_state
+                .insert(id, LogStatus::FinishedWithError);
+        }
+    };
+
+    if let Some(buffer) = logone.cargo_log_buffers.get_mut(&id) {
+        for msg in messages.clone() {
+            buffer.push(msg);
+        }
+    }
+
+    if logone.level() == logone::LogLevel::Cargo {
+        for msg in messages {
+            let file: Option<&str> = None;
+            logone.print_message(exit_code, msg.as_str(), file);
         }
     }
 
