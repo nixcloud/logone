@@ -2,7 +2,27 @@ use crate::{logone, logone::LogStatus};
 use anyhow::{anyhow, Result};
 use serde_json::{Map, Value};
 
-// echo "@cargo { \"type\":0, \"crate_name\":\"{{{crate_name}}}\", \"id\":\"{{{fullname}}}\" }"
+fn get_target_name(obj: &Map<String, Value>) -> String {
+    let crate_name = obj
+        .get("crate_name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    let crate_type = obj
+        .get("crate_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    if crate_type.is_empty() {
+        crate_name.clone()
+    } else {
+        format!("{} {}", crate_name, crate_type)
+    }
+}
+
+// echo "@cargo { \"type\":0, \"crate_name\":\"{{{crate_name}}}\", \"crate_type\":\"{{{crate_type}}}\", \"id\":\"{{{fullname}}}\" }"
 pub fn handle_cargo_log_start(obj: &Map<String, Value>, logone: &mut logone::LogOne) -> Result<()> {
     let id = obj
         .get("id")
@@ -15,22 +35,18 @@ pub fn handle_cargo_log_start(obj: &Map<String, Value>, logone: &mut logone::Log
         .cargo_log_buffers_state
         .insert(id, LogStatus::Started);
 
-    let crate_name = obj
-        .get("crate_name")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
+    let target_name = get_target_name(&obj);
+    
+    logone.target_add(target_name.clone())?;
 
-    logone.target_add(crate_name.clone())?;
-
-    let msg: String = format!("   \x1b[32mCompiling\x1b[0m {}", crate_name);
+    let msg: String = format!("   \x1b[32mCompiling\x1b[0m {}", target_name);
 
     logone.print_message(0, msg.as_str(), None);
 
     Ok(())
 }
 
-// @cargo {type: 2, id: $fullname, crate_name: $crate_name, rustc_exit_code: ($exit_code|tonumber), rustc_messages: [ { rendered: "..." }, { rendered: "..." }, ... ]}
+// @cargo {type: 2, id: $fullname, crate_name: $crate_name, crate_type: $crate_type, rustc_exit_code: ($exit_code|tonumber), rustc_messages: [ { rendered: "..." }, { rendered: "..." }, ... ]}
 pub fn handle_cargo_log_rustc_exit(
     obj: &Map<String, Value>,
     logone: &mut logone::LogOne,
@@ -41,13 +57,9 @@ pub fn handle_cargo_log_rustc_exit(
         .and_then(|v| v.as_u64())
         .ok_or_else(|| anyhow!("Missing id in log phase"))?;
 
-    let crate_name = obj
-        .get("crate_name")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
+    let target_name = get_target_name(&obj);
 
-    logone.target_remove(crate_name)?;
+    logone.target_remove(target_name.clone())?;
 
     let rustc_exit_code: u64 = obj.get("rustc_exit_code").and_then(|v| v.as_u64()).unwrap();
 
@@ -100,7 +112,7 @@ pub fn handle_cargo_log_rustc_exit(
     Ok(())
 }
 
-// @cargo {type: 4, crate_name: $crate_name, exit_code: ($exit_code|tonumber), messages: [ "a", "b", "c" ]}
+// @cargo {type: 4, crate_name: $crate_name, crate_type: $crate_type, exit_code: ($exit_code|tonumber), messages: [ "a", "b", "c" ]}
 pub fn handle_cargo_log_build_exit(
     obj: &Map<String, Value>,
     logone: &mut logone::LogOne,
@@ -111,13 +123,9 @@ pub fn handle_cargo_log_build_exit(
         .and_then(|v| v.as_u64())
         .ok_or_else(|| anyhow!("Missing id in log phase"))?;
 
-    let crate_name = obj
-        .get("crate_name")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
+    let target_name = get_target_name(&obj);
 
-    logone.target_remove(crate_name)?;
+    logone.target_remove(target_name.clone())?;
 
     let exit_code: u64 = obj.get("exit_code").and_then(|v| v.as_u64()).unwrap();
 

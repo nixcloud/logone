@@ -477,6 +477,16 @@
 @nix {"action":"stop","id":3183309500710918}
 @nix {"action":"stop","id":3183309500710917}
 @nix {"action":"stop","id":3183309500710916}
+@nix {"action":"start","fields":["/nix/store/mhzp27a9bfzlrqpil40h63dv4ism8vvr-flate2-1_1_0-0ed929165b6920e7.drv","",1,1],"id":3183309500711156,"level":3,"parent":0,"text":"building '/nix/store/mhzp27a9bfzlrqpil40h63dv4ism8vvr-flate2-1_1_0-0ed929165b6920e7.drv'","type":105}
+@nix {"action":"result","fields":["Running phase: unpackPhase"],"id":3183309500711156,"type":101}
+@nix {"action":"result","fields":["unpackPhase"],"id":3183309500711156,"type":104}
+@nix {"action":"result","fields":["Running phase: buildPhase"],"id":3183309500711156,"type":101}
+@nix {"action":"result","fields":["buildPhase"],"id":3183309500711156,"type":104}
+@nix {"action":"result","fields":["\u001b[92mCompiling\u001b[0m flate2-1_1_0-0ed929165b6920e7"],"id":3183309500711156,"type":101}
+@nix {"action":"result","fields":["@cargo { \"type\":0, \"crate_name\":\"flate2\",\"crate_type\":\"(lib)\" }"],"id":3183309500711156,"type":101}
+@nix {"action":"result","fields":["+++ /nix/store/h1c2imj0dpfyyfrd0i6195xznqxcar8x-rust-stable-2025-08-07/bin/rustc --crate-name flate2 --edition=2018 src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --diagnostic-width=209 --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no --cfg 'feature=\"any_impl\"' --cfg 'feature=\"any_zlib\"' --cfg 'feature=\"libz-sys\"' --cfg 'feature=\"zlib\"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values(\"any_impl\", \"any_zlib\", \"cloudflare-zlib-sys\", \"cloudflare_zlib\", \"default\", \"libz-ng-sys\", \"libz-rs-sys\", \"libz-sys\", \"miniz-sys\", \"miniz_oxide\", \"rust_backend\", \"zlib\", \"zlib-default\", \"zlib-ng\", \"zlib-ng-compat\", \"zlib-rs\"))' -C metadata=45297f639ded8f01 -C extra-filename=-0ed929165b6920e7 --out-dir /nix/store/yf6bav7z5n0xgh4p9gkspq5a24333gmi-flate2-1_1_0-0ed929165b6920e7 -L /nix/store/46yaq6l9xr5hbv42fsmaw3kw8a69da9r-crc32fast-1_4_2-3d7fbbab345759e0 -L /nix/store/aw25sdmsi3mrn6lyv2grfzwd7aswlr24-cfg-if-1_0_0-616d46354eebf850 -L /nix/store/5ilm30vji3hsx5qpai9dl2qfpb7xw4sj-libz-sys-1_1_21-287b93149940135a --extern crc32fast=/nix/store/46yaq6l9xr5hbv42fsmaw3kw8a69da9r-crc32fast-1_4_2-3d7fbbab345759e0/libcrc32fast-3d7fbbab345759e0.rmeta --extern libz_sys=/nix/store/5ilm30vji3hsx5qpai9dl2qfpb7xw4sj-libz-sys-1_1_21-287b93149940135a/liblibz_sys-287b93149940135a.rmeta --cap-lints allow"],"id":3183309500711156,"type":101}
+@nix {"action":"result","fields":["+++ rustc_exit_value=0"],"id":3183309500711156,"type":101}
+@nix {"action":"result","fields":["+++ set +x -e"],"id":3183309500711156,"type":101}
 @nix {"action":"start","id":3183296615809247,"level":5,"parent":0,"text":"copying '/nix/store/qcgr82a27rmifcmw7hhxywsd43gnb75j-source/Cargo.lock' to the store","type":0}
 @nix {"action":"stop","id":3183296615809247}
 @nix {"action":"start","id":3183296615809248,"level":5,"parent":0,"text":"copying '/nix/store/5j5y90a6m6jssvg2xybf86xgkjfa4zab-source/pkgs/by-name/li/libedit/01-cygwin.patch' to the store","type":0}
