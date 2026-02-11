@@ -112,7 +112,7 @@ pub fn handle_cargo_log_rustc_exit(
     Ok(())
 }
 
-// @cargo {type: 4, crate_name: $crate_name, crate_type: $crate_type, exit_code: ($exit_code|tonumber), messages: [ "a", "b", "c" ]}
+// @cargo {type: 3, crate_name: $crate_name, crate_type: $crate_type, exit_code: ($exit_code|tonumber), messages: [ "a", "b", "c" ]}
 pub fn handle_cargo_log_build_exit(
     obj: &Map<String, Value>,
     logone: &mut logone::LogOne,

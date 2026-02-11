@@ -124,8 +124,18 @@ impl LogOne {
         Ok(())
     }
 
-    // Redraw status line with current stored values (ignores anti-flicker logic)
-    pub fn redraw_status(&mut self) {
+    pub fn clear_status(&mut self) {
+        if self.status_line_active {
+            let mut stdout = stdout();
+            stdout.execute(MoveToPreviousLine(1)).unwrap();
+            stdout.execute(MoveToColumn(0)).unwrap();
+            stdout.execute(Clear(ClearType::CurrentLine)).unwrap();
+            self.status_line_active = false;
+        }
+    }
+
+    // Draw status line with current stored values (ignores anti-flicker logic)
+    pub fn draw_status(&mut self) {
         // Only redraw if we have stats to show
         if let Some((done, expected, running, failed)) = self.last_stats {
             let base_status = format!(
@@ -240,13 +250,7 @@ impl LogOne {
 
         if let Some(buffer) = buffer {
             // Clear status line if active
-            if self.status_line_active {
-                let mut stdout = stdout();
-                stdout.execute(MoveToPreviousLine(1)).unwrap();
-                stdout.execute(MoveToColumn(0)).unwrap();
-                stdout.execute(Clear(ClearType::CurrentLine)).unwrap();
-                self.status_line_active = false;
-            }
+            self.clear_status();
 
             println!("Build log for '{}':", drv);
             for message in buffer {
@@ -276,7 +280,7 @@ impl LogOne {
             stdout().flush().unwrap();
 
             // Redraw status line after printing log buffer
-            self.redraw_status();
+            self.draw_status();
         }
     }
 
@@ -312,7 +316,7 @@ impl LogOne {
         stdout().flush().unwrap();
 
         // Redraw status line after printing message
-        self.redraw_status();
+        self.draw_status();
     }
 
     pub fn clear_status_line(&mut self) {
