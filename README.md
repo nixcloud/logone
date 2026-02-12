@@ -8,6 +8,8 @@ this rust project 'logone' implements a 'standalone program' and a 'crate librar
 
 and it changes the way logging works by making it less verbose / nosiy.
 
+if you have nix, you can run the passthru-test, see folder passthru-test/README.md
+
 # level
 
 how it works, depends on the selected log level using `--level`.
