@@ -80,10 +80,22 @@ impl LogOne {
     pub fn shutdown(&mut self) {
         if self.active {
             self.active = false;
-            let ids: Vec<u64> = self.nix_log_buffers.keys().cloned().collect();
             if self.level() == LogLevel::Verbose {
-                for id in ids {
-                    self.print_log_buffer_by_id(id);
+                use LogStatus::*;
+                let desired_order = [
+                    FinishedWithSuccess,
+                    Stopped,
+                    Started,
+                    FinishedWithError
+                ];
+                for status in desired_order.iter() {
+                    let ids: Vec<Id> = self.nix_log_buffers_state
+                        .iter()
+                        .filter_map(|(&id, &state)| if state == *status { Some(id) } else { None })
+                        .collect();
+                    for id in ids {
+                        self.print_log_buffer_by_id(id);
+                    }
                 }
             }
         }
